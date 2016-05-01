@@ -1,6 +1,6 @@
 // Emil Hedemalm
 // 2013-06-28
-
+/*
 #include "RacingState.h"
 #include "Actions.h"
 // Don't include all managers. Ever.
@@ -133,17 +133,6 @@ void Racing::InputProcessor(int action, int inputDevice){
 			};
 			break;
 
-	/*
-			/// Driving... :P
-	BEGIN_ACCELERATION,	STOP_ACCELERATION,
-	BEGIN_BREAKING,		STOP_BREAKING,
-	BEGIN_TURNING_LEFT, STOP_TURNING_LEFT,
-	BEGIN_TURNING_RIGHT, STOP_TURNING_RIGHT,
-
-	/// Camera
-	CHANGE_CAMERA,			/// Switch active camera
-*/
-
 		/// Opening the general console for multi-purpose commands of more difficult nature
 		case OPEN_CONSOLE:
 			std::cout<<"\nOpening multi-purpose console: ";
@@ -268,3 +257,4 @@ void Racing::InputProcessor(int action, int inputDevice){
 }
 
 // #endif
+*/

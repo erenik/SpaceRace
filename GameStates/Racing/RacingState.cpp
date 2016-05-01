@@ -1,14 +1,15 @@
 // Emil Hedemalm
 // 2013-06-28
 
-#include "Game/GameVariables.h"
+/*
+#include "Game/GameVariable.h"
 #include "Graphics/GraphicsManager.h"
 #include "Maps/MapManager.h"
 #include "Physics/PhysicsManager.h"
 #include "Input/InputManager.h"
 #include "StateManager.h"
 #include "TextureManager.h"
-#include "ModelManager.h"
+#include "Model/ModelManager.h"
 #include "Network/NetworkManager.h"
 #include "Audio/TrackManager.h"
 
@@ -20,11 +21,9 @@
 #include "../Graphics/Messages/GMUI.h"
 #include "../Physics/PhysicsProperty.h"
 #include "Graphics/Render/RenderViewport.h"
-#include "Physics/Messages/CollissionCallback.h"
 #include "Physics/Messages/PhysicsMessage.h"
-#include "EntityStates/StateProperty.h"
 #include "../../EntityStates/RacingShipGlobal.h"
-#include "Graphics/Messages/GMParticleMessages.h"
+//#include "Graphics/Messages/GMParticleMessages.h"
 #include "OS/Sleep.h"
 #include <Util.h>
 #include "Script/TextAnimationEvent.h"
@@ -39,7 +38,7 @@
 #include "../../AI/AIRacer.h"
 #include "Graphics/Messages/GMSet.h"
 #include "../../SRConstants.h"
-#include "UI/UIList.h"
+#include "UI/UILists.h"
 
 #include "../../SRPlayer.h"
 
@@ -92,7 +91,7 @@ void Racing::CreateUserInterface(){
 	ui->Load("gui/RacingMenu.gui");
 }
 
-void Racing::OnEnter(GameState * previousState){
+void Racing::OnEnter(AppState * previousState){
     std::cout<<"\nRacing::OnEnter";
   //  assert(previousState != this);
 	
@@ -529,25 +528,6 @@ void Racing::Process(float time){
 	Graphics.QueueMessage(new GMSetUIs("localTime", GMUI::TEXT, String::ToString((int)Timer::GetCurrentTimeMs(true)/1000)));
 	Graphics.QueueMessage(new GMSetUIs("timeAdjustment", GMUI::TEXT, String::ToString((int)Timer::GetAdjustment()) + " ms"));
 
-/*	/// Fly! :D
-	/// Rotate first, yo o.O
-	/// Rotation multiplier.
-	float rotMultiplier = 0.05f;
-	mainCamera->rotation += mainCamera->rotationVelocity * (float) (mainCamera->rotationSpeedMultiplier * timeDiff);
-	// Check input for moving camera
-	if (mainCamera->velocity.Length() > 0){
-		Vector4d moveVec;
-		moveVec = Vector4d(mainCamera->velocity);
-		/// Flight-speed multiplier.
-		float multiplier = 0.5f * mainCamera->flySpeedMultiplier;
-		moveVec = moveVec * multiplier * (float)timeDiff;
-		Matrix4d rotationMatrix;
-		rotationMatrix.InitRotationMatrixY(-mainCamera->rotation.y);
-		rotationMatrix.multiply(Matrix4d::GetRotationMatrixX(-mainCamera->rotation.x));
-		moveVec = rotationMatrix.product(moveVec);
-		mainCamera->position += Vector3f(moveVec);
-	}
-	*/
 };
 
 enum mouseCameraStates {
@@ -1029,7 +1009,7 @@ void Racing::OnCloseMenu(){
 }
 
 /// Increments checkpoints passed and posts updates to the session manager. Also calls OnPlayerCheckpointsPassedUpdated() to update UI.
-void Racing::PlayerPassCheckpoint(SRPlayer * player, int checkpointsPassed /*= -1*/){
+void Racing::PlayerPassCheckpoint(SRPlayer * player, int checkpointsPassed){
 	if (!GetSession()->IsHost())
 		return;
 	/// Send a notification of this.
@@ -1229,12 +1209,6 @@ void Racing::OnPlayerLapsUpdated(SRPlayer * player){
 void Racing::FormatResults(){
 
     // Old
-    /*
-	Graphics.QueueMessage(new GMClearUI("Positions"));
-	Graphics.QueueMessage(new GMClearUI("Names"));
-	Graphics.QueueMessage(new GMClearUI("TotalLapTimes"));
-	Graphics.QueueMessage(new GMClearUI("BestLapTimes"));
-	*/
 	Graphics.QueueMessage(new GMClearUI("ResultsList"));
 
 	List<SRPlayer*> playersSorted, playersToBeSorted = GetPlayers();
@@ -1325,3 +1299,4 @@ void Racing::FormatResults(){
 		Graphics.QueueMessage(new GMAddUI(playerStats, "ResultsList"));
 	}
 }
+*/

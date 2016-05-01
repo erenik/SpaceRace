@@ -487,9 +487,10 @@ bool SRSession::AddLocalPlayer(String * namePtr /*= NULL */)
 		name = me->name + String::ToString(GetLocalPlayers().Size());
 	}
 	/// If host, just create it straight away.
-	if (isHost){
+	if (isHost)
+	{
 		// Check first that we got a valid input-device for this player.
-		int inputDevice = Input.GetNextAvailableInputDevice();
+		int inputDevice = InputMan.GetNextAvailableInputDevice();
 		if (inputDevice == InputDevice::INVALID_DEVICE)
 			return false;
 		SRPlayer * p = new SRPlayer();
@@ -498,7 +499,7 @@ bool SRSession::AddLocalPlayer(String * namePtr /*= NULL */)
 		p->isLocal = true;
 		p->isAI = false;
 		p->inputDevice = inputDevice;
-		Input.SetInputDeviceAvailability(inputDevice, true);
+		InputMan.SetInputDeviceAvailability(inputDevice, true);
 		/// Add it to the list too...
 		this->players.Add(p);
 		// Notify of the update
@@ -577,7 +578,7 @@ bool SRSession::RemoveLocalPlayer(int index /* = -1 */)
 			if (sd)
 				sd->players.Remove(playerToRemove);
 			/// Delete it.
-			Input.SetInputDeviceAvailability(playerToRemove->inputDevice, false);
+			InputMan.SetInputDeviceAvailability(playerToRemove->inputDevice, false);
 			delete playerToRemove;
 			/// Inform of changes
 			OnPlayersUpdated();
@@ -616,7 +617,7 @@ bool SRSession::RemoveAIPlayer(int index /*= -1*/)
 			if (sd)
 				sd->players.Remove(playerToRemove);
 			/// Delete it.
-			Input.SetInputDeviceAvailability(playerToRemove->inputDevice, false);
+			InputMan.SetInputDeviceAvailability(playerToRemove->inputDevice, false);
 			delete playerToRemove;
 			/// Inform of changes
 			OnPlayersUpdated();
@@ -643,7 +644,7 @@ bool SRSession::RemovePlayerByIndex(int index)
 	SRPlayer * player = players[index];
 	/// If local, make input device free again.
 	if (player->isLocal){
-		Input.SetInputDeviceAvailability(player->inputDevice, false);
+		InputMan.SetInputDeviceAvailability(player->inputDevice, false);
 	}
 	players.Remove(player);
 	SRSessionData * srsd = GetSessionData(player->owner);

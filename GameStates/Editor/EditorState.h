@@ -1,6 +1,7 @@
 // Emil Hedemalm
 // 2013-06-28
 
+/*
 #include "../SpaceRaceGameState.h"
 #include "Selection.h"
 #include "Graphics/Camera/Camera.h"
@@ -126,3 +127,4 @@ private:
 	int mouseCameraState;
 };
 
+*/

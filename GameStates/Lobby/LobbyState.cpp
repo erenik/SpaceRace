@@ -1,6 +1,7 @@
 // Emil Hedemalm
 // 2013-07-10
 
+/*
 #include "LobbyState.h"
 #include "Graphics/GraphicsManager.h"
 #include "Player/PlayerManager.h"
@@ -40,6 +41,7 @@
 #include "../../Network/SRPacketTypes.h"
 #include "../../Network/SRPacket.h"
 
+/*
 enum actions {
 	NULL_ACTION,
 	INCREASE_LOCAL_PLAYERS,
@@ -156,7 +158,7 @@ void LobbyState::CreateUserInterface()
 	ui->Load("gui/Lobby.gui");
 }
 
-void LobbyState::InputProcessor(int action, int inputDevice/* = 0*/){
+void LobbyState::InputProcessor(int action, int inputDevice){
 
 }
 
@@ -496,13 +498,6 @@ void LobbyState::OnPlayersUpdated()
 			playerShip->text = player->ship->name;
 		playerDiv->AddChild(playerShip);
 
-/*
-#ifdef USE_NETWORK
-		playerName->text = (((SRPlayer *)PlayerMan.Get(i))->clientIndex >= 0)? Network.GetClient(((SRPlayer *)PlayerMan.Get(i))->clientIndex)->name : "Player " + String::ToString(i+1);
-#else
-		playerName->text = "Player " + String::ToString(i+1);
-#endif
-		*/
 
 		if (player->isLocal && !player->isAI){
             UIButton * inputSelectButton = new UIButton();
@@ -588,3 +583,4 @@ void LobbyState::OnEnterShipSelector(){
 		Graphics.QueueMessage(new GMSetUIs("ShipList", GMUI::TEXT, "Ship folder empty"));
 	}
 }
+*/

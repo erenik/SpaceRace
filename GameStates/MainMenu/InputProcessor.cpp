@@ -1,6 +1,7 @@
 // Emil Hedemalm
 // 2013-06-28
 
+/*
 #include "MainMenu.h"
 #include "Actions.h"
 // Don't include all managers. Ever.
@@ -8,7 +9,7 @@
 #include "StateManager.h"
 #include "Audio/AudioManager.h"
 
-void MainMenu::InputProcessor(int action, int inputDevice/* = 0*/){
+void MainMenu::InputProcessor(int action, int inputDevice){
 	switch(action){
         case TEST_AUDIO:
 #ifdef USE_AUDIO
@@ -31,3 +32,4 @@ void MainMenu::InputProcessor(int action, int inputDevice/* = 0*/){
 			break;
 	}
 }
+*/

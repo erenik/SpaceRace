@@ -1,6 +1,7 @@
 // Emil Hedemalm
 // 2013-06-28
 
+/*
 #include "MainMenu.h"
 // Don't include all managers. Ever.
 #include "Message/Message.h"
@@ -38,7 +39,7 @@ MainMenu::~MainMenu()
 
 void MainMenu::OnEnter(GameState * previousState){
 	std::cout<<"\nEntering Main Menu state";
-	//	SetWindowPos(hWnd, HWND_TOP, 0, 0, 800, 600, SWP_NOMOVE/*SWP_HIDEWINDOW*/);
+	//	SetWindowPos(hWnd, HWND_TOP, 0, 0, 800, 600, SWP_NOMOVE);
 
     Graphics.QueueMessage(new GMSet(CLEAR_COLOR, Vector3f(0.1f,0.1f,0.15f)));
 	/// Enable keyboard-navigation of the UI!
@@ -212,3 +213,5 @@ void MainMenu::OnChatMessageReceived(ChatMessage * chatMessage){
     /// Scroll dauown (100 pages) to it!
     Graphics.QueueMessage(new GMScrollUI("NetworkLog", -100.0f));
 }
+
+*/

@@ -1,11 +1,14 @@
-// 2013-06-15
+/// Emil Hedemalm
+/// Originally, 2013-06-15, 2016-05-01
+/// Property for racing ship.
 
-#include "EntityStates/EntityState.h"
+#include "Entity/EntityProperty.h"
 
 class Exhaust;
 class Ship;
+class AI;
 
-class RacingShipGlobal : public EntityState {
+class RacingShipGlobal : public EntityProperty {
 public:
 	/// Owner and ship-blueprint to base our interactions on!
 	RacingShipGlobal(Entity * owner, Ship * ship);
@@ -18,6 +21,9 @@ public:
 	void OnExit();
 	/// Function for handling messages sent to the entity.
 	void ProcessMessage(Message * message);
+
+	/// If reacting to collisions... in main thread
+	virtual void OnCollisionCallback(CollisionCallback * cc);
 
 	/// Packs in all relevant data into a string. Packs different data if currently host or not, since host decides things.
 	String GetStateAsString(bool isHost);
@@ -66,9 +72,11 @@ public:
 	bool synchronized;
 	
 	/// Set starting position, to be used in-case checkpoints fail.
-	void SetStartingPosition(Vector3f position, Vector3f andRotation);
+	void SetStartingPosition(ConstVec3fr position, ConstVec3fr andRotation);
 
 private:
+	AI * ai;
+
 	/// Position set at the start of a race. Usually somewhere close to the goal.
 	Vector3f startingPosition;
 	Vector3f startingRotation;

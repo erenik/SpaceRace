@@ -2,11 +2,14 @@
 // 2014-03-05
 // 
 
+/*
 #define print(arg) std::cout << arg << "\n";
 
-#include "Graphics/GraphicsManager.h"
-#include "Physics/PhysicsManager.h"
-#include "Game/GameVariables.h"
+#include "Physics/Messages/PhysicsMessage.h"
+#include "Physics/SRCR.h"
+#include "Physics/SRIntegrator.h"
+
+#include "Game/GameVariableManager.h"
 #include "StateManager.h"
 
 #include "GlobalState.h"
@@ -23,11 +26,11 @@
 #include "Audio/AudioManager.h"
 #include "Audio/TrackManager.h"
 #include "../../SRPlayer.h"
-#include "UI/UIList.h"
+#include "UI/UILists.h"
 #include "UI/UITypes.h"
 #include "Audio/Tracks/Track.h"
 #include "System/PreferencesManager.h"
-#include "Message/VectorMessage.h"
+#include "Message/MathMessage.h"
 
 //#include "Network/NetworkSettings.h"
 #include "Network/Packet/Packet.h"
@@ -39,7 +42,7 @@
 #include "../../Network/SRPacket.h"
 #include "../../Network/SRPacketTypes.h"
 #include "../../SRConstants.h"
-#include "Graphics/Fonts/Font.h"
+// #include "Graphics/Fonts/Font.h"
 #include "Script/Script.h"
 #include "Maps/MapManager.h"
 #include "Game/Game.h"
@@ -51,7 +54,7 @@ const String applicationName = "Space Race";
 void SetApplicationDefaults()
 {
 	FilePath::workingDirectory = "/SpaceRace";
-	TextFont::defaultFontSource = "font3";
+//	TextFont::defaultFontSource = "font3";
 	UIElement::defaultTextureSource = "80Gray50Alpha.png";
 	UserInterface::rootUIDir = "gui/";
 	Script::rootEventDir = "data/SpaceRace/Events/";
@@ -73,7 +76,7 @@ GlobalState::~GlobalState()
 }
 
 
-void GlobalState::OnEnter(GameState * previousState)
+void GlobalState::OnEnter(AppState * previousState)
 {
 	LoadPreferences();
 
@@ -82,10 +85,10 @@ void GlobalState::OnEnter(GameState * previousState)
 	NetworkMan.AddSession(srs);
 
 	// Defaultur.
-	Physics.QueueMessage(new PMSet(GRAVITY, -250.f));
+	QueuePhysics(new PMSet(PT_GRAVITY, -250.f));
 
 	// Begin loading textures here for the UI
-	Graphics.QueueMessage(new GraphicsMessage(GM_CLEAR_UI));
+	QueueGraphics(new GraphicsMessage(GM_CLEAR_UI));
 
 	/// Allocate managers required by zis game!
 	if (!ShipManager::IsAllocated()){
@@ -96,12 +99,12 @@ void GlobalState::OnEnter(GameState * previousState)
 	// Laps!
 	GameVars.CreateInt("Laps", 3);
 
-    Physics.checkType = OCTREE;
-	Physics.collisionResolver = CollisionResolver::CUSTOM_SPACE_RACE_PUSHBACK;
-	Physics.integrator = Integrator::SPACE_RACE_CUSTOM_INTEGRATOR;
+//    Physics.checkType = OCTREE;
+	QueuePhysics(new PMSet(new SRCR()));
+	QueuePhysics(new PMSet(new SRIntegrator()));
 
 	// Set graphics manager to render UI, and remove the overlay-texture.
-	Graphics.QueueMessage(new GraphicsMessage(GM_CLEAR_OVERLAY_TEXTURE));
+	QueueGraphics(new GraphicsMessage(GM_CLEAR_OVERLAY_TEXTURE));
 
 	/// Register packet sizes.
 //	SRSetPacketSize();
@@ -113,8 +116,8 @@ void GlobalState::OnEnter(GameState * previousState)
 	TrackMan.CreateTrack("Wapp", "sound/bgm/SpaceRace/2014-02-18_Wapp.ogg", "Race");
 }
 
-void GlobalState::OnExit(GameState * nextState){
-//	Graphics.QueueMessage(new GraphicsMessage(GM_CLEAR_UI));
+void GlobalState::OnExit(AppState * nextState){
+//	QueueGraphics(new GraphicsMessage(GM_CLEAR_UI));
 	std::cout<<"\nLeaving GlobalState state.";
 
 	/// Deallocate managers we were using.
@@ -124,9 +127,9 @@ void GlobalState::OnExit(GameState * nextState){
 
 	// Load initial texture and set it to render over everything else
 	if (nextState && nextState->GetID() != GameStateID::GAME_STATE_EXITING)
-		Graphics.QueueMessage(new GMSets(OVERLAY_TEXTURE, "img/loadingData.png"));
+		QueueGraphics(new GMSets(GT_OVERLAY_TEXTURE, "img/loadingData.png"));
 	else
-		Graphics.QueueMessage(new GMSets(OVERLAY_TEXTURE, "img/deallocating.png"));
+		QueueGraphics(new GMSets(GT_OVERLAY_TEXTURE, "img/deallocating.png"));
 
 	SavePreferences();
 }
@@ -248,7 +251,7 @@ void GlobalState::JoinGame(){
         String resultString = "Unable to connect, reason: " + errorString;
         ChatMan.AddMessage(new ChatMessage(NULL, resultString));
     }
-    Graphics.QueueMessage(new GMScrollUI("NetworkLog", -100.0f));
+    QueueGraphics(new GMScrollUI("NetworkLog", -100.0f));
 }
 
 void GlobalState::ProcessMessage( Message * message ){
@@ -258,9 +261,10 @@ void GlobalState::ProcessMessage( Message * message ){
 		{
 			String msg = message->msg;
 			FloatMessage * fm = (FloatMessage*) message;
-			if (msg == "SetMasterVolume"){
+			if (msg == "SetMasterVolume")
+			{
 				float value = fm->value;
-				AudioMan.SetMasterVolume(value);
+				QueueAudio(new AMSet(AT_MASTER_VOLUME, value));
 			}
 			else if (msg == "SetLaps")
 			{
@@ -278,7 +282,7 @@ void GlobalState::ProcessMessage( Message * message ){
 			else if (s == "OnRaceOptionsUpdated")
 			{
 				/// Update the gui with current options.
-				Graphics.QueueMessage(new GMSetUIf("Laps", GMUI::FLOAT_INPUT, GetSession()->Laps()));
+				QueueGraphics(new GMSetUIf("Laps", GMUI::FLOAT_INPUT, GetSession()->Laps()));
 
 			}
 			else if (s == "ShowPeerUdpStatus")
@@ -294,20 +298,20 @@ void GlobalState::ProcessMessage( Message * message ){
 					element = UserInterface::LoadUIAsElement("gui/PeerUdpStatus.gui");
 					if (!element)
 						return;
-					Graphics.QueueMessage(new GMAddUI(element));
+					QueueGraphics(new GMAddUI(element));
 				}
 				/// Update the list
 				UpdatePeerUdpStatusUI();
 
 				/// Push it to stack if not.
-				Graphics.QueueMessage(new GMPushUI(elementName, ui));
+				QueueGraphics(new GMPushUI(elementName, ui));
 				/// Make sure it is exitable.
 				element->exitable = true;
 			}
 			else if (s == "HidePeerUdpStatus"){
 				String elementName = "PeerUdpStatus";
 				/// Send a pop ui message. No harm will come if it isn't available!
-				Graphics.QueueMessage(new GMPopUI(elementName, ui));
+				QueueGraphics(new GMPopUI(elementName, ui));
 			}
 			else if (s.Contains("PostChatMessage(")){
 				String uiName = s.Tokenize("()")[1];
@@ -329,10 +333,13 @@ void GlobalState::ProcessMessage( Message * message ){
 			}
 			else if (s == "go_to_main_menu")
 				StateMan.QueueState(StateMan.GetStateByID(GameStateID::GAME_STATE_MAIN_MENU));
-			else if (s == "ToggleRenderEntityLookAtVectors"){
-				Graphics.renderLookAtVectors = !Graphics.renderLookAtVectors;
+			else if (s == "ToggleRenderEntityLookAtVectors")
+			{
+				assert(false && "Update code");
+//				GraphicsMan.renderLookAtVectors = !Graphics.renderLookAtVectors;
 			}
-			else if (s == "TogglePhysicsPaused"){
+			else if (s == "TogglePhysicsPaused")
+			{
 				if (Physics.IsPaused())
 					Physics.Resume();
 				else
@@ -385,13 +392,13 @@ void GlobalState::ProcessMessage( Message * message ){
 				{
 					t->enabled = !message->element->toggled;
 					String uiName = "SetTrackEnabled("+t->name+",!this->toggled)";
-					Graphics.QueueMessage(new GMSetUIb(uiName, GMUI::TOGGLED, t->enabled));
-					Graphics.QueueMessage(new GMSetUIs(uiName, GMUI::TEXT, t->enabled? "Enabled" : "Disabled"));
+					QueueGraphics(new GMSetUIb(uiName, GMUI::TOGGLED, t->enabled));
+					QueueGraphics(new GMSetUIs(uiName, GMUI::TEXT, t->enabled? "Enabled" : "Disabled"));
 				}
 			}
 			else if (s.Contains("UpdateBGMPreferencesUIList(")){
 				String targetListName = s.Tokenize("()")[1];
-				Graphics.QueueMessage(new GMClearUI(targetListName));
+				QueueGraphics(new GMClearUI(targetListName));
 
 				List<Track*> tracks = TrackMan.GetTracks();
 				for (int i = 0; i < tracks.Size(); ++i)
@@ -418,7 +425,7 @@ void GlobalState::ProcessMessage( Message * message ){
 					preview->activationMessage = "PlayTrack("+t->name+")";
 					preview->sizeRatioX = 0.3f;
 					track->AddChild(preview);
-					Graphics.QueueMessage(new GMAddUI(track, targetListName));
+					QueueGraphics(new GMAddUI(track, targetListName));
 				}
 			}
 
@@ -506,12 +513,6 @@ void GlobalState::ProcessMessage( Message * message ){
 	}
 }
 
-/*
-/// Wosh.
-void GlobalState::OnChatMessageReceived(ChatMessage * cm){
-
-}
-*/
 
 void GlobalState::Process(float time){
 	// Calculate time since last update
@@ -539,7 +540,7 @@ void GlobalState::MouseWheel(float delta){
 
 }
 
-void GlobalState::OnSelect(Selection &selection){
+void GlobalState::OnSelect(Entities &selection){
 
 }
 
@@ -549,7 +550,7 @@ void AddLabel(String text, String toUi)
 	UIElement * newElement = new UILabel();
 	newElement->text = text;
 	newElement->sizeRatioY = 0.1f;
-	Graphics.QueueMessage(new GMAddUI(newElement, toUi));
+	QueueGraphics(new GMAddUI(newElement, toUi));
 }
 
 void GlobalState::LoadPreferences()
@@ -575,12 +576,12 @@ void GlobalState::SavePreferences()
 void GlobalState::OnAudioEnabledUpdated()
 {
 	bool enabled = AudioMan.AudioEnabled();
-	Graphics.QueueMessage(new GMSetUIs("AudioEnabled", GMUI::TEXT, enabled ? "Audio Enabled" : "Audio Disabled"));
+	QueueGraphics(new GMSetUIs("AudioEnabled", GMUI::TEXT, enabled ? "Audio Enabled" : "Audio Disabled"));
 }
 
 void GlobalState::OnMasterVolumeUpdated()
 {
-	Graphics.QueueMessage(new GMSetUIf("MasterVolume", GMUI::FLOAT_INPUT, AudioMan.MasterVolume()));
+	QueueGraphics(new GMSetUIf("MasterVolume", GMUI::FLOAT_INPUT, AudioMan.MasterVolume()));
 }
 
 
@@ -589,12 +590,12 @@ void GlobalState::OnMasterVolumeUpdated()
 void GlobalState::UpdatePeerUdpStatusUI()
 {
 	/// Clear the lists
-	Graphics.QueueMessage(new GMClearUI("UdpPeerList"));
-	Graphics.QueueMessage(new GMClearUI("UdpPeerUdpTestPacketsSent"));
-	Graphics.QueueMessage(new GMClearUI("UdpPeerUdpTestPacketsReceived"));
-	Graphics.QueueMessage(new GMClearUI("UdpPeerUdpWorkingPacketsSent"));
-	Graphics.QueueMessage(new GMClearUI("UdpPeerUdpWorkingPacketsReceived"));
-//	Graphics.QueueMessage(new GMClearUI("UdpPeerList"));
+	QueueGraphics(new GMClearUI("UdpPeerList"));
+	QueueGraphics(new GMClearUI("UdpPeerUdpTestPacketsSent"));
+	QueueGraphics(new GMClearUI("UdpPeerUdpTestPacketsReceived"));
+	QueueGraphics(new GMClearUI("UdpPeerUdpWorkingPacketsSent"));
+	QueueGraphics(new GMClearUI("UdpPeerUdpWorkingPacketsReceived"));
+//	QueueGraphics(new GMClearUI("UdpPeerList"));
 	SRSession * srs = GetSession();
 	List<Peer*> peers = GetSession()->GetPeers();
 	///
@@ -609,3 +610,4 @@ void GlobalState::UpdatePeerUdpStatusUI()
 		AddLabel(String::ToString(srsd->udpWorkingPacketsReceived), "UdpPeerUdpWorkingPacketsReceived");
 	}
 }
+*/

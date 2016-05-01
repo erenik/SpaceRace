@@ -52,7 +52,7 @@ bool SRPacket::Send(Peer * peer)
 		return false;
 	}
 	int result = 0;
-	result = srsd->srSocket->Write(data.c_str(), data.Length());
+	result = srsd->srSocket->Write((char*)data.GetData(), data.Bytes());
 	return result > 0;
 }
 
@@ -68,14 +68,14 @@ bool SRPacket::SendUdp(Peer * peer, UdpSocket * usingSocket, int andPort){
 	}
 	int result = 0;
 	/// IP addresses: 33000 SIP, 33001 SR TCP, 33002 SR Host UDP, 33003 SR Client UDP
-	result = usingSocket->WriteTo(peer->ipAddress, String::ToString(andPort), data.c_str(), data.Length());
+	result = usingSocket->WriteTo(peer->ipAddress, String::ToString(andPort), (char*)data.GetData(), data.Bytes());
 	return result > 0;
 }
 
 /// Sends this packet's data to target QTcpSocket, using necessary packet-headers.
 bool SRPacket::Send(Socket * sock)
 {
-	int result = sock->Write(data.c_str(), data.Length());
+	int result = sock->Write((char*)data.GetData(), data.Bytes());
 	return result > 0;
 }
 
@@ -190,14 +190,16 @@ bool SRPacket::ReadPackets(Socket * sock, List<SRPacket*> & packetsRead){
 }
 
 /// True upon success, false if socket failure. Packets are concatenated and headers are built.
-bool SRPacket::SendPackets(Socket * toSocket, List<SRPacket*> & packetList){
-	String data;
-	for (int i = 0; i < packetList.Size(); ++i){
+bool SRPacket::SendPackets(Socket * toSocket, List<SRPacket*> & packetList)
+{
+	DataStream data;
+	for (int i = 0; i < packetList.Size(); ++i)
+	{
 		SRPacket * p = packetList[i];
-		data += p->data;
+		data.PushBytes(p->data.GetData(), p->data.Bytes());
 	}
 	/// Write
-	int result = toSocket->Write(data.c_str(), data.Length());
+	int result = toSocket->Write((char*)data.GetData(), data.Bytes());
 	return result >= 1;
 }
 
@@ -300,7 +302,8 @@ void SRPacket::CreateData(){
 	lines += SR_PACKET_END;
 	/// Empty line between so we get decent new lines between each packet (necessary).
 	lines += "";
-	data = MergeLines(lines);
+	data.PopAll();
+	data.Push(MergeLines(lines));
 }
 
 // Will have name, so getter function for it.
@@ -433,8 +436,8 @@ void SRPlayersPacket::Parse(int & number, List<String> & playerNames, List<Strin
 SRPlayerMovePacket::SRPlayerMovePacket(int playerIndex)
 : SRPacket(SRPacketType::PLAYER_MOVE)
 {
-	body.Add(String::ToString(playerIndex));
-	body.Add("DummyMessageString");
+	body.AddItem(String::ToString(playerIndex));
+	body.AddItem("DummyMessageString");
 }
 
 void SRPlayerMovePacket::SetMessage(String msg){
@@ -464,7 +467,7 @@ Vector3f ParseVector3f(String s)
 	return Vector3f(sl[0].ParseFloat(), sl[1].ParseFloat(), sl[2].ParseFloat());
 }
 
-SRPlayerPositionPacket::SRPlayerPositionPacket(int playerID, Vector3f position, Vector3f velocity, Vector3f rotation, String state, long long gameTime)
+SRPlayerPositionPacket::SRPlayerPositionPacket(int playerID, ConstVec3fr position, ConstVec3fr velocity, ConstVec3fr rotation, String state, long long gameTime)
 : SRPacket(SRPacketType::PLAYER_POSITION)
 {
 	timeCreated = gameTime;

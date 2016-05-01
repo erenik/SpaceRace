@@ -2,7 +2,7 @@
 // 2013-06-17
 
 #include "../SpaceRaceGameState.h"
-
+/*
 class MainMenu : public SpaceRaceGameState {
 public:
 	MainMenu();
@@ -30,3 +30,4 @@ private:
 
 	int requestedPlayers;
 };
+*/

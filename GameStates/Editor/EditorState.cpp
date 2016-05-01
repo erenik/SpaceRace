@@ -1,6 +1,7 @@
 // Emil Hedemalm
 // 2013-06-28
 
+/*
 #include "EditorState.h"
 
 #include "Graphics/GraphicsManager.h"
@@ -109,11 +110,6 @@ void EditorState::OnEnter(GameState * previousState){
 
 	// Load the AI scene
 	// Don't load anytheing o-o;
-/*	if (!MapMan.MakeActive(&editorMap)){
-		Graphics.QueueMessage(new GMRegisterEntities(MapMan.GetEntities()));
-		Physics.QueueMessage(new PMRegisterEntities(MapMan.GetEntities()));
-	}
-*/
 	/// Reset physics settings
 	Physics.QueueMessage(new PhysicsMessage(PM_RESET_SETTINGS));
 
@@ -147,57 +143,6 @@ void EditorState::Process(float time){
 	int64 newTime = Timer::GetCurrentTimeMs();
 	int64 timeDiff = newTime - lastTime;
 	lastTime = newTime;
-
-	/*
-	// Print the input buffer if applicable
-	//if (Input.IsInTextEnteringMode())
-	{
-		String inputBuf = Input.GetInputBuffer();
-		if (Input.IsInTextEnteringMode()){
-			if (newTime % 1000 > 500)
-				inputBuf += "_";
-		}
-		Graphics.QueueMessage(new GMSetUIs("InputBuffer", GMUI::TEXT, inputBuf));
-	}
-	*/
-
-	// Update for previously entered commands to the log AppWindow
-	/*
-	{
-		List<String> inputs;
-		for (int i = 1; i < InputManager::INPUT_BUFFERS; ++i){
-			String input = Input.GetInputBuffer(i);
-			if (input.Length() != 0)
-				inputs.Add(input);
-		}
-		String s = "";
-		for (int i = 0; i < inputs.Size() && i < 5; ++i){
-			s = s + inputs[i] + "\n";
-		}
-		Graphics.QueueMessage(new GMSetUIs("OutputData", GMUI::TEXT, s));
-	}*/
-
-
-	/* Deprecated, should be handled within the camera and graphics thread now!
-	/// Fly! :D
-	/// Rotate first, yo o.O
-	/// Rotation multiplier.
-	float rotMultiplier = 0.05f;
-	mainCamera->rotation += mainCamera->rotationVelocity * mainCamera->rotationSpeed * (float)timeDiff;
-	// Check input for moving camera
-	if (mainCamera->velocity.Length() > 0){
-		Vector4d moveVec;
-		moveVec = Vector4d(mainCamera->velocity);
-		/// Flight-speed multiplier.
-		float multiplier = 0.5f * mainCamera->flySpeedMultiplier;
-		moveVec = moveVec * multiplier * (float)timeDiff;
-		Matrix4d rotationMatrix;
-		rotationMatrix.InitRotationMatrixY(-mainCamera->rotation.y);
-		rotationMatrix.multiply(Matrix4d::GetRotationMatrixX(-mainCamera->rotation.x));
-		moveVec = rotationMatrix.product(moveVec);
-		mainCamera->position += Vector3f(moveVec);
-	}
-	*/
 };
 
 /// Callback function that will be triggered via the MessageManager when messages are processed.
@@ -1032,13 +977,6 @@ void EditorState::MouseClick(bool down, int x, int y, UIElement * elementClicked
 							if (entity->physics){
 								radius = entity->physics->physicalRadius;
 								switch(entity->physics->physicsShape){
-								/*
-									/// Check with mesh instead
-									break;
-
-									/// Do regular stuff as shown below
-									break;
-									*/
 								case ShapeType::QUAD:{
 									/// Compare with plaaaane
 									std::cout<<"\nQuad/Tri";
@@ -1129,15 +1067,6 @@ void EditorState::MouseMove(float x, float y, bool lDown, bool rDown, UIElement 
 			if (Input.KeyPressed(KEY::CTRL)){
 				float camDist = AbsoluteValue(camera->distanceFromCentreOfMovement);
 				camera->distanceFromCentreOfMovement += diffY * log(camDist);
-		/*		if (diffY > 0){
-					camera->distanceFromCentreOfMovement *= 0.8f;
-				}
-				else if (diffY < 0){
-					camera->distanceFromCentreOfMovement *= 1.25f;
-				}
-				if (camera->distanceFromCentreOfMovement > 0)
-					camera->distanceFromCentreOfMovement = 0;
-					*/
 			}
 			else {
 				camera->position += camera->LeftVector() * diffX / 100.0f * PAN_SPEED_MULTIPLIER;
@@ -1550,3 +1479,5 @@ void EditorState::CreateCheckpoints(){
 		}
 	}
 }
+
+*/

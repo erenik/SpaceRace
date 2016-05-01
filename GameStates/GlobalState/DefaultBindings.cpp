@@ -6,6 +6,7 @@
 #include "Input/InputManager.h"
 // Don't include all managers. Ever.
 
+/*
 /// Creates bindings that are used for debugging purposes only
 void GlobalState::CreateDefaultBindings(){
 	std::cout<<"\nGlobalState::CreateDefaultBindings() called";
@@ -40,3 +41,4 @@ void GlobalState::CreateDefaultBindings(){
 
 };
 
+*/

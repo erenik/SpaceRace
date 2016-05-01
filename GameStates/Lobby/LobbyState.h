@@ -10,9 +10,9 @@ public:
 	LobbyState();
 	/// Virtual destructor to discard everything appropriately.
 	virtual ~LobbyState();
-	void OnEnter(GameState * previousState);
+	void OnEnter(AppState * previousState);
 	void Process(float time);
-	void OnExit(GameState * nextState);
+	void OnExit(AppState * nextState);
 	void CreateDefaultBindings();
 	void CreateUserInterface();
 	void InputProcessor(int action, int inputDevice = 0);

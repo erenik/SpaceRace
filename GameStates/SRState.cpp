@@ -1,7 +1,41 @@
 /// Emil Hedemalm
-/// 2014-02-02
+/// Rework of 2014-02-02, 2016-05-01
 /// Middle-class that provides general functionality like retrieving active players via the game session, etc.
 
+#include "SRState.h"
+#include "StateManager.h"
+#include "Application\Application.h"
+
+void SetApplicationDefaults()
+{
+	Application::name = "Space Race";
+//	TextFont::defaultFontSource = "img/fonts/myFont.png";
+};
+void RegisterStates()
+{
+	SRState * srs = new SRState();
+	StateMan.RegisterState(srs);
+	StateMan.QueueState(srs);
+}
+
+/// Function when entering this state, providing a pointer to the previous StateMan.
+void SRState::OnEnter(AppState * previousState)
+{
+	// Set physics stuffs?
+}
+/// Main processing function, using provided time since last frame.
+void SRState::Process(int timeInMs)
+{
+
+}
+/// Function when leaving this state, providing a pointer to the next StateMan.
+void SRState::OnExit(AppState * nextState)
+{
+
+}
+
+
+/*
 #include "SpaceRaceGameState.h"
 #include "Network/NetworkManager.h"
 #include "Network/Session/SessionTypes.h"
@@ -192,4 +226,4 @@ void SpaceRaceGameState::MakeCameraActive()
 void SpaceRaceGameState::ResetCamera()
 {
 	mainCamera->flySpeed = 3.0f;
-}
+}*/

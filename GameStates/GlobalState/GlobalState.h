@@ -1,7 +1,8 @@
 // Awesome Author
 
+/*
 #include "../SpaceRaceGameState.h"
-#include "Selection.h"
+#include "Entity/Entities.h"
 
 class SRSession;
 
@@ -10,9 +11,9 @@ public:
 	GlobalState();
 	/// Virtual destructor to discard everything appropriately.
 	virtual ~GlobalState();
-	void OnEnter(GameState * previousState);
+	void OnEnter(AppState * previousState);
 	void Process(float time);
-	void OnExit(GameState * nextState);
+	void OnExit(AppState * nextState);
 
 	void ProcessPacket(Packet * packet);
 	void ProcessMessage(Message * message);
@@ -37,7 +38,7 @@ public:
 	virtual void MouseMove(float x, float y, bool lDown = false, bool rDown = false, UIElement * elementOver = NULL);
 	void MouseWheel(float delta);
 	/// Interpret selection queries for additional processing (updating UI for example).
-	void OnSelect(Selection &selection);
+	void OnSelect(Entities &selection);
 
 	/// Increases playback speed and notifies relevant systems of the change
 	void IncreaseSpeed();
@@ -59,3 +60,4 @@ private:
 	String networkStatus;
 };
 
+*/

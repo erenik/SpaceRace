@@ -58,7 +58,7 @@ void AIRacer::Process(float timeInSeconds){
 			; //std::cout<<"\nERROR: No navmesh nor path available. AI will not function.";
 			return;
 		}
-		closestWaypoint = path->GetClosest(shipEntity->position);
+		closestWaypoint = path->GetClosest(shipEntity->worldPosition);
 		if (closestWaypoint == NULL){
 			std::cout<<"\nERROR: Unable to find closest waypoint. This ship is probably fucked.";
 			return;
@@ -73,8 +73,8 @@ void AIRacer::Process(float timeInSeconds){
 		std::cout<<"\nNo valid pathhhh? >:";
 		return;
 	}
-	float distToCurr = (closestWaypoint->position - shipEntity->position).LengthSquared();
-	float distToNext = (nextWaypointAverage - shipEntity->position).LengthSquared();
+	float distToCurr = (closestWaypoint->position - shipEntity->worldPosition).LengthSquared();
+	float distToNext = (nextWaypointAverage - shipEntity->worldPosition).LengthSquared();
 	if (distToNext < distToCurr){
 		closestWaypoint = nextWaypoints[0];
 		CalculateNextAverage();
@@ -86,7 +86,7 @@ void AIRacer::Process(float timeInSeconds){
 	}
 	/// Go towards current waypoint.
 	Vector3f currDirr = (shipEntity->rotationMatrix * Vector4d(0,0,-1,1)).NormalizedCopy();
-	Vector3f dirToNext = (nextWaypointAverage - shipEntity->position).NormalizedCopy();
+	Vector3f dirToNext = (nextWaypointAverage - shipEntity->worldPosition).NormalizedCopy();
 
 	float currDirrDotNextDirr = currDirr.DotProduct(dirToNext);
 
@@ -148,9 +148,11 @@ void AIRacer::Process(float timeInSeconds){
 		}
 	}
 
-	// Check once in a while maybe ?
+	// Check once in a while maybe ? Do what?
+	assert(false && "update");
+	/*
 	Entity * e = gameState->GetCheckpoint(player->checkpointsPassed);
-	float distanceToCheckpoint = (e->position - shipEntity->position).Length();
+	float distanceToCheckpoint = (e->worldPosition - shipEntity->worldPosition).Length();
 	if (distanceToCheckpoint < closestDistance){
 		closestDistance = distanceToCheckpoint;
 	}
@@ -158,7 +160,7 @@ void AIRacer::Process(float timeInSeconds){
 	else if (distanceToCheckpoint > closestDistance * 2.0f + 200.0f){
 		shipState->ResetPosition();
 		closestDistance = 100000000000000.0f;
-	}
+	}*/
 
 }
 

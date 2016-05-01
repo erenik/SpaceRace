@@ -2,9 +2,9 @@
 // 2013-06-15
 
 #include "Message/Message.h"
-#include "Physics/Messages/CollissionCallback.h"
+//#include "Physics/Messages/CollissionCallback.h"
 #include "RacingShipGlobal.h"
-#include "EntityStates/EntityStates.h"
+//#include "EntityStates/EntityStates.h"
 #include "Graphics/GraphicsManager.h"
 #include "Graphics/Messages/GMSetGraphicEffect.h"
 #include "Graphics/GraphicsProperty.h"
@@ -24,10 +24,10 @@
 #include "String/StringUtil.h"
 
 RacingShipGlobal::RacingShipGlobal(Entity * entity, Ship * ship)
-: EntityState(EntityStateType::RACING_SHIP, entity)
+: EntityProperty("RacingShipGlobal", 0, entity)
 {
 	/// Hope that the position vector is the starting position..
-	startingPosition = entity->position;
+	startingPosition = entity->worldPosition;
 	startingRotation = entity->rotation;
 
 	assert(ship && entity);
@@ -66,6 +66,8 @@ RacingShipGlobal::RacingShipGlobal(Entity * entity, Ship * ship)
 	thrustingRequested = false;
 	resetRequested = false;
 	boostRequested = false;
+
+	ai = 0;
 };
 
 RacingShipGlobal::~RacingShipGlobal()
@@ -79,7 +81,11 @@ RacingShipGlobal::~RacingShipGlobal()
 void RacingShipGlobal::OnEnter(){
 
 	/// Attach shield if not already done!
-	if (entity->graphics == NULL){
+	if (owner->graphics == NULL)
+	{
+		std::cout<<"\nAdd shield n lights?";
+		/*
+
 	    /// Shield!
 		GraphicsProperty * graphics = new GraphicsProperty();
 	//	graphics->effects = new List<GraphicEffect*>();
@@ -97,7 +103,7 @@ void RacingShipGlobal::OnEnter(){
 		headlights->specular = headlights->diffuse * 0.5f;
 		headlights->spotCutoff = 65.0f;
 		headlights->spotExponent = 12;
-		headlights->owner = entity;
+		headlights->owner = owner;
 		graphics->dynamicLights->Add(headlights);
 
         /// Engine exhaust!
@@ -113,7 +119,7 @@ void RacingShipGlobal::OnEnter(){
 
 		// Don't scale down the shield, yo..
 	//	Graphics.QueueMessage(new GMSetGraphicEffect(RELATIVE_SCALE, "Shield", Vector3f(0.7f,0.7f,0.7f), entity));
-
+		*/
 	}
 }
 
@@ -145,11 +151,10 @@ void RacingShipGlobal::Process(float timePassed){
 void RacingShipGlobal::OnExit(){
 }
 
-void RacingShipGlobal::ProcessMessage(Message * message){
-//	std::cout<<"\nRacingShipGlobal::ProcessMessage: ";
-	switch(message->type){
-		case MessageType::COLLISSION_CALLBACK: {
-			CollissionCallback * c = (CollissionCallback*)message;
+/// If reacting to collisions... in main thread
+void RacingShipGlobal::OnCollisionCallback(CollisionCallback * cc)
+{
+//			CollissionCallback * c = (CollissionCallback*)message;
 
 			/*
 		//	std::cout<<"\nCollissionCallback received for entity "<<c->one->name<<" and "<<c->two->name;
@@ -161,6 +166,15 @@ void RacingShipGlobal::ProcessMessage(Message * message){
 					Graphics.QueueMessage(new GMSetGraphicEffect(ALPHA, "Shield", c->impactVelocity / 1000.0f, entity));
 			}
 			*/
+
+}
+
+
+void RacingShipGlobal::ProcessMessage(Message * message){
+//	std::cout<<"\nRacingShipGlobal::ProcessMessage: ";
+	switch(message->type){
+		case MessageType::COLLISSION_CALLBACK: 
+		{
 			break;
 		}
 	}
@@ -213,10 +227,11 @@ String RacingShipGlobal::GetStateAsString(bool isHost){
 }
 
 /// Loads from string as created via GetStateAsString
-bool RacingShipGlobal::LoadStateFromString(String stateString){
+bool RacingShipGlobal::LoadStateFromString(String stateString)
+{
 	List<String> states = stateString.Tokenize(";");
 	/// If local, don't do anything except accepting boost.
-	if (this->entity->player->isLocal){
+	if (owner->player->isLocal){
 		/// Stop boosting by default, enable it only when Boost is packed into the packet.
 		StopAccelerating(true);
 		for (int i = 0; i < states.Size(); ++i){
@@ -460,12 +475,12 @@ void RacingShipGlobal::ResetPosition(){
 
 	lastResetTime = currentTime;
 	// Resetting position..!
-	SRPlayer * player = (SRPlayer*)entity->player;
+	SRPlayer * player = (SRPlayer*)owner->player;
 	player->checkpointsPassed;
-	Entity * checkpoint = Racing::GetCheckpoint(player->checkpointsPassed-1);
+	Entity * checkpoint = 0; // Racing::GetCheckpoint(player->checkpointsPassed-1);
 	Vector3f position, rotation;
 	if (checkpoint){
-		position = checkpoint->position;
+		position = checkpoint->worldPosition;
 		rotation = checkpoint->rotation;
 		rotation.y += PI;
 	}
@@ -474,9 +489,9 @@ void RacingShipGlobal::ResetPosition(){
 		position = startingPosition;
 		rotation = startingRotation;
 	}
-	Physics.QueueMessage(new PMSetEntity(VELOCITY, entity, entity->physics->velocity * 0.1f));
-	Physics.QueueMessage(new PMSetEntity(SET_ROTATION, entity, rotation));
-	Physics.QueueMessage(new PMSetEntity(POSITION, entity, position));
+	Physics.QueueMessage(new PMSetEntity(owner, PT_VELOCITY, owner->physics->velocity * 0.1f));
+	Physics.QueueMessage(new PMSetEntity(owner, PT_SET_ROTATION, rotation));
+	Physics.QueueMessage(new PMSetEntity(owner, PT_POSITION, position));
 	if (ai)
 		((AIRacer*)ai)->Reset();
 }
@@ -530,7 +545,7 @@ void RacingShipGlobal::OnAccelerationUpdated(){
 		boosting = false;
 	}
 //	std::cout<<"\nRacingShipGlobal::OnAccelerationUpdated: Setting acceleration to: "<<relativeAcc;
-	Physics.QueueMessage(new PMSetEntity(ACCELERATION, entity, relativeAcc));
+	Physics.QueueMessage(new PMSetEntity(owner, PT_ACCELERATION, relativeAcc));
 }
 void RacingShipGlobal::OnTurningUpdated(){
 	Vector3f relativeAngularAcc;
@@ -546,7 +561,7 @@ void RacingShipGlobal::OnTurningUpdated(){
 			relativeAngularAcc.y -= shipType->angularThrust;
 	}
 	// Send message and apply graphical effects if any.
-	Physics.QueueMessage(new PMSetEntity(ANGULAR_ACCELERATION, entity, relativeAngularAcc));
+	Physics.QueueMessage(new PMSetEntity(owner, PT_ANGULAR_ACCELERATION, relativeAngularAcc));
 }
 
 
@@ -556,7 +571,7 @@ void RacingShipGlobal::ReloadFromShip(){
 }
 
 /// Set starting position, to be used in-case checkpoints fail.
-void RacingShipGlobal::SetStartingPosition(Vector3f position, Vector3f andRotation)
+void RacingShipGlobal::SetStartingPosition(ConstVec3fr position, ConstVec3fr andRotation)
 {
 	startingPosition = position;
 	startingRotation = andRotation;

@@ -1,6 +1,7 @@
 // Emil Hedemalm
 // 2013-06-28
 
+/*
 #include "MainMenu.h"
 #include "Actions.h"
 #include "Input/InputManager.h"
@@ -31,3 +32,4 @@ void MainMenu::CreateUserInterface(){
 	ui = new UserInterface();
 	ui->Load("gui/MainMenu.gui");
 }
+*/

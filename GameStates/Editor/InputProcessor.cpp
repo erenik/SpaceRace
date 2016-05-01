@@ -1,6 +1,7 @@
 // Emil Hedemalm
 // 2013-06-28
 
+/*
 #include <cstring>
 #include "EditorState.h"
 #include "Actions.h"
@@ -19,7 +20,7 @@
 #include "Graphics/Messages/GraphicsMessages.h"
 #include "Graphics/Messages/GMSet.h"
 
-void EditorState::InputProcessor(int action, int inputDevice/* = 0*/){
+void EditorState::InputProcessor(int action, int inputDevice){
 	/// Don't do some stuff if entering text man..
 	if (Input.IsInTextEnteringMode()){
 		std::cout<<"\nIs in text-entering mode..";
@@ -401,3 +402,4 @@ void EditorState::InputProcessor(int action, int inputDevice/* = 0*/){
 		break;
 	}
 }
+*/

@@ -1,6 +1,7 @@
 // Emil Hedemalm
 // 2013-06-28
 
+/*
 #include "EditorState.h"
 #include "Actions.h"
 #include "Input/InputManager.h"
@@ -29,10 +30,6 @@ void EditorState::CreateDefaultBindings(){
 	mapping->SetBlockingKeys(mapping->CreateBinding(OPEN_CONSOLE, KEY::ENTER, "ENTER : Open Console"), KEY::ALT);
 
 	/// Physical entity manipulation TODO
-/*	mapping->CreateBinding(ENTER_TRANSLATION, KEY::F1, KEY::T, "");
-	mapping->CreateBinding(ENTER_SCALING, KEY::
-	mapping->CreateBinding(ENTER_ROTATION,
-*/
 	// Map save/load
 	mapping->SetBlockingKeys(mapping->CreateBinding(SAVE_MAP_PROMPT, KEY::CTRL, KEY::S, KEY::M, "CTRL+S+M : Save map"), KEY::R);
 	mapping->CreateBinding(LOAD_MAP_PROMPT, KEY::CTRL, KEY::L, "CTRL+L : Load map");
@@ -103,3 +100,4 @@ void EditorState::CreateDefaultBindings(){
 	mapping->SetBlockingKeys(mapping->CreateBinding(RESET_CAMERA, KEY::HOME, "HOME : Reset camera"), KEY::ALT, KEY::CTRL);
 
 };
+*/

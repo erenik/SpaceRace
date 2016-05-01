@@ -5,15 +5,23 @@
 #ifndef SPACE_RACE_GAME_STATE_H
 #define SPACE_RACE_GAME_STATE_H
 
-#include "GameStates/GameState.h"
-#include "GameStates/GameStates.h"
+#include "AppStates/AppState.h"
+#include "AppStates/AppStates.h"
 #include "Game/GameConstants.h"
 #include "../Network/SRSession.h"
 #include "../SRPlayer.h"
 
-class SpaceRaceGameState : public GameState
+class SRState : public AppState
 {
 public:
+	/// Function when entering this state, providing a pointer to the previous StateMan.
+	virtual void OnEnter(AppState * previousState);
+	/// Main processing function, using provided time since last frame.
+	virtual void Process(int timeInMs);
+	/// Function when leaving this state, providing a pointer to the next StateMan.
+	virtual void OnExit(AppState * nextState);
+
+
 	/// Retrieves the active gaming session (this assumes only one is active at a time).
 	SRSession * GetSession();
 	/// Returns player for target index. Returns NULL for invalid indices.

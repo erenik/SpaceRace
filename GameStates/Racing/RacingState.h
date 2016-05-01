@@ -1,11 +1,12 @@
 // Emil Hedemalm
 // 2013-06-17
 
+/*
 #ifndef RACING_H
 #define RACING_H
 
 #include "../SpaceRaceGameState.h"
-#include "Selection.h"
+#include "Entity/Entities.h"
 #include "Graphics/Camera/Camera.h"
 
 class GameSession;
@@ -20,9 +21,9 @@ public:
 	Racing();
 	/// Virtual destructor to discard everything appropriately.
 	virtual ~Racing();
-	void OnEnter(GameState * previousState);
+	void OnEnter(AppState * previousState);
 	void Process(float time);
-	void OnExit(GameState * nextState);
+	void OnExit(AppState * nextState);
 	/// Input functions for the various states
 	void MouseClick(bool down, int x = -1, int y = -1, UIElement * elementClicked = NULL);
 	void MouseRightClick(bool down, int x = -1, int y = -1, UIElement * elementClicked = NULL);
@@ -64,7 +65,7 @@ private:
 	GameSession * gameSession;
 
 	/// Creates ship-entity for target player.
-	Entity * CreateShipForPlayer(SRPlayer * player, Vector3f startPosition);
+	Entity * CreateShipForPlayer(SRPlayer * player, ConstVec3fr startPosition);
 
 	/// Wosh.
 	bool timerStarted;
@@ -92,8 +93,8 @@ private:
 
 	/** List of all active players! (human-controlled, either locally or via network).
 		Index 0 will always be the primary local player.
-		Refer to the MultiplayerProperty for organizing entities with different players (name/IP/etc).
-	*/
+	/// Refer to the MultiplayerProperty for organizing entities with different players (name/IP/etc).
+	
 	List<Entity*> playerEntities;
 	/// Set upon loading map!
 	List<Entity*> checkpoints;
@@ -103,9 +104,10 @@ private:
 	List<Camera*> cameras;
 	List<RenderViewport*> viewports;
 	/// Actively manipulated entities
-	Selection editorSelection;
+	Entities editorSelection;
 };
 
 #endif
 
 // #endif // SPACE_RACE
+*/
