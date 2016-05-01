@@ -3,13 +3,40 @@
 /// Middle-class that provides general functionality like retrieving active players via the game session, etc.
 
 #include "SRState.h"
+#include "SRDirectories.h"
+#include "ShipManager.h"
+
+#include "SRTrack.h"
+#include "Physics/SRCR.h"
+#include "Physics/SRIntegrator.h"
+
+#include "Input/Action.h"
+#include "Input/Keys.h"
+#include "Graphics/Camera/CameraUtil.h"
+#include "Graphics/Camera/Camera.h"
+#include "Physics/Messages/PhysicsMessage.h"
+#include "Graphics/Messages/GMUI.h"
+#include "Graphics/Messages/GMCamera.h"
+#include "Graphics/Messages/GraphicsMessage.h"
+#include "Graphics/Messages/GraphicsMessages.h"
+
+#include "Maps/MapManager.h"
+#include "Model/ModelManager.h"
+#include "TextureManager.h"
+
 #include "StateManager.h"
-#include "Application\Application.h"
+#include "Application/Application.h"
+#include "Network/NetworkManager.h"
+#include "Game/GameVariableManager.h"
+#include "StateManager.h"
+#include "Audio/TrackManager.h"
+
+Camera * mapPreviewCamera = 0, * firstPersonCamera = 0, * activeCamera = 0;
 
 void SetApplicationDefaults()
 {
 	Application::name = "Space Race";
-//	TextFont::defaultFontSource = "img/fonts/myFont.png";
+	TextFont::defaultFontSource = "img/fonts/font3.png";
 };
 void RegisterStates()
 {
@@ -21,8 +48,47 @@ void RegisterStates()
 /// Function when entering this state, providing a pointer to the previous StateMan.
 void SRState::OnEnter(AppState * previousState)
 {
-	// Set physics stuffs?
+//	LoadPreferences();
+	SRSession * srs = new SRSession("Game name");
+	NetworkMan.AddSession(srs);
+	if (!ShipManager::IsAllocated()){
+		ShipManager::Allocate();
+		ShipMan.LoadFromDirectory(SHIP_DIR);
+	}
+	GameVars.CreateInt("Laps", 3);
+	QueuePhysics(new PMSet(new SRCR()));
+	QueuePhysics(new PMSet(new SRIntegrator()));
+	QueuePhysics(new PMSet(PT_GRAVITY, -250.f));
+	QueueGraphics(new GraphicsMessage(GM_CLEAR_OVERLAY_TEXTURE));
+	QueueGraphics(new GraphicsMessage(GM_CLEAR_UI));
+	TrackMan.CreateTrack("Bitsurf", "sound/bgm/SpaceRace/2013-08-26_Bitsurf.ogg", "Race");
+	TrackMan.CreateTrack("Space race", "sound/bgm/SpaceRace/2013-03-25 Space race.ogg", "Race");
+	TrackMan.CreateTrack("Wapp", "sound/bgm/SpaceRace/2014-02-18_Wapp.ogg", "Race");
+
+	// Set a default camera.
+	if (!mapPreviewCamera)
+		mapPreviewCamera = CameraMan.NewCamera("MapPreviewCamera", true);
+	if (!firstPersonCamera)
+		firstPersonCamera = CameraMan.NewCamera("FirstPersonCamera", true);
+//	cameras.Add(mapPreviewCamera);
+//	cameras.Add(firstPersonCamera);
+
+	QueueGraphics(new GMSetCamera(mapPreviewCamera, CT_ROTATION, Vector3f()));
+	QueueGraphics(new GMSetCamera(mapPreviewCamera, CT_DISTANCE_FROM_CENTER_OF_MOVEMENT, 3.f));
+	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_TRACKING_MODE, TrackingMode::FOLLOW_AND_LOOK_AT));
+	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_DISTANCE_FROM_CENTER_OF_MOVEMENT, 0.f));
+	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_ROTATIONAL_SMOOTHNESS, 0.000001f));
+	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_SMOOTHING, 0.05f)); 
+
+	// o-o
+	activeCamera = mapPreviewCamera;
+	QueueGraphics(new GMSetCamera(mapPreviewCamera));
+
+	// Create a dummy entity.
+	MapMan.CreateEntity("Lall", ModelMan.GetModel("obj/cube.obj"), TexMan.GetTexture("0xFFFFFFFF"));
+
 }
+
 /// Main processing function, using provided time since last frame.
 void SRState::Process(int timeInMs)
 {
@@ -32,6 +98,72 @@ void SRState::Process(int timeInMs)
 void SRState::OnExit(AppState * nextState)
 {
 
+}
+
+void SRState::CreateDefaultBindings()
+{
+	InputMapping * mapping = &this->inputMapping;
+	List<Binding*> & bindings = mapping->bindings;
+	bindings.Add(CreateDefaultCameraBindings());
+	bindings.AddItem(new Binding(Action::FromString("OpenStatusScreen"), List<int>(KEY::CTRL, KEY::S)));
+	mapping->bindings.Add(new Binding(Action::FromString("ToggleAutorun"), KEY::R));
+	mapping->bindings.Add(new Binding(Action::FromString("ToggleHeal"), KEY::H));
+	bindings.AddItem((new Binding(Action::FromString("NextTarget"), KEY::TAB))->SetActivateOnRepeat(true));
+	bindings.AddItem((new Binding(Action::FromString("PreviousTarget"), List<int>(KEY::SHIFT, KEY::TAB)))->SetActivateOnRepeat(true));
+	bindings.AddItem(new Binding(Action::FromString("Interact"), KEY::ENTER));
+	bindings.AddItem(new Binding(Action::FromString("OpenInputLine"), KEY::SPACE));
+	bindings.AddItem(new Binding(Action::FromString("TargetSelf"), KEY::F1));
+	bindings.AddItem(new Binding(Action::FromString("Cancel/Escape"), KEY::ESCAPE)); // Mainly removing main target.
+	bindings.AddItem(new Binding(Action::FromString("OpenMainMenu"), KEY::PLUS));
+	bindings.AddItem(new Binding(Action::FromString("OpenMainMenu"), KEY::F));
+}
+
+void SRState::ProcessMessage(Message * message)
+{
+
+	String msg = message->msg;
+	ProcessCameraMessages(msg, activeCamera);
+	switch(message->type)
+	{
+		case MessageType::SET_STRING:
+		{
+			SetStringMessage * ssm = (SetStringMessage*) message;
+			if (msg == "SetInputLine")
+			{
+				std::cout<<"\nSetInputLine: "<<ssm;
+				/// Good. Evaluate it.
+				String input = ssm->value;
+				EvaluateLine(input);
+				/// Hide input box thingy.
+				QueueGraphics(new GMPopUI("UIInputLine", 0));
+			}
+			break;
+		}
+		case MessageType::STRING:
+			if (msg == "OpenInputLine")
+			{
+				QueueGraphics(new GMPushUI("gui/UIInputLine.gui"));
+				/// Make it active for input?
+				QueueGraphics(new GMSetUIs("InputLine", GMUI::STRING_INPUT_TEXT, ""));
+				QueueGraphics(new GMSetUIb("InputLine", GMUI::ACTIVE, true));
+			}
+			break;
+	}
+};
+
+void SRState::EvaluateLine(String line)
+{
+	if (!line.StartsWith("/"))
+		return;
+	if (line == "/gen")
+	{
+		if (!track)
+			track = new SRTrack();
+		track->Generate();
+		track->GenerateMesh();
+		// Redner it?
+		track->MakeActive();
+	}
 }
 
 

@@ -20,8 +20,11 @@ public:
 	virtual void Process(int timeInMs);
 	/// Function when leaving this state, providing a pointer to the next StateMan.
 	virtual void OnExit(AppState * nextState);
+	/// o-o
+	virtual void ProcessMessage(Message * message);
+	virtual void CreateDefaultBindings();
 
-
+	/*
 	/// Retrieves the active gaming session (this assumes only one is active at a time).
 	SRSession * GetSession();
 	/// Returns player for target index. Returns NULL for invalid indices.
@@ -45,14 +48,18 @@ public:
 	void SetCameraProjection3D();
 	/// Assume one main camera for this game. Add more cameras in your states if you're gonna do magic stuff.
 	static Camera * mainCamera;
- 
+ */
 private:
+
+	void EvaluateLine(String line);
+	/*
 	/// Creates the camera.
 	void CreateCamera();
 	/// Registers it with the graphics-manager!
 	void MakeCameraActive();
 	/// Resets velocities and stuff
 	void ResetCamera();
+	*/
 };
 
 #endif
