@@ -9,9 +9,14 @@
 #include "SRTrack.h"
 #include "Physics/SRCR.h"
 #include "Physics/SRIntegrator.h"
+#include "Physics/CollisionDetectors/FirstPersonCD.h"
+
+#include "EntityStates/RacingShipGlobal.h"
 
 #include "Input/Action.h"
 #include "Input/Keys.h"
+#include "Input/InputDevices.h"
+
 #include "Graphics/Camera/CameraUtil.h"
 #include "Graphics/Camera/Camera.h"
 #include "Physics/Messages/PhysicsMessage.h"
@@ -31,7 +36,8 @@
 #include "StateManager.h"
 #include "Audio/TrackManager.h"
 
-Camera * mapPreviewCamera = 0, * firstPersonCamera = 0, * activeCamera = 0;
+Camera * mapPreviewCamera = 0, * firstPersonCamera = 0, * activeCamera = 0, * inShipCamera = 0, * reverseCamera = 0;
+List<Camera*> cameras;
 
 void SetApplicationDefaults()
 {
@@ -56,6 +62,7 @@ void SRState::OnEnter(AppState * previousState)
 		ShipMan.LoadFromDirectory(SHIP_DIR);
 	}
 	GameVars.CreateInt("Laps", 3);
+	QueuePhysics(new PMSet(new FirstPersonCD()));
 	QueuePhysics(new PMSet(new SRCR()));
 	QueuePhysics(new PMSet(new SRIntegrator()));
 	QueuePhysics(new PMSet(PT_GRAVITY, -250.f));
@@ -66,26 +73,34 @@ void SRState::OnEnter(AppState * previousState)
 	TrackMan.CreateTrack("Wapp", "sound/bgm/SpaceRace/2014-02-18_Wapp.ogg", "Race");
 
 	// Set a default camera.
-	if (!mapPreviewCamera)
-		mapPreviewCamera = CameraMan.NewCamera("MapPreviewCamera", true);
-	if (!firstPersonCamera)
-		firstPersonCamera = CameraMan.NewCamera("FirstPersonCamera", true);
+	mapPreviewCamera = CameraMan.NewCamera("MapPreviewCamera", true);
+	inShipCamera = CameraMan.NewCamera("InShipCamera", true);
+	firstPersonCamera = CameraMan.NewCamera("FirstPersonCamera", true);
+
 //	cameras.Add(mapPreviewCamera);
 //	cameras.Add(firstPersonCamera);
 
 	QueueGraphics(new GMSetCamera(mapPreviewCamera, CT_ROTATION, Vector3f()));
 	QueueGraphics(new GMSetCamera(mapPreviewCamera, CT_DISTANCE_FROM_CENTER_OF_MOVEMENT, 3.f));
+
+	// In-ship camera.
+	QueueGraphics(new GMSetCamera(inShipCamera, CT_TRACKING_MODE, TrackingMode::THIRD_PERSON_AIRCRAFT));
+	QueueGraphics(new GMSetCamera(inShipCamera, CT_DESIRED_MINIMUM_Y_DIFF, 0.1f));
+	QueueGraphics(new GMSetCamera(inShipCamera, CT_ROTATIONAL_SMOOTHNESS, 0.01f));
+	QueueGraphics(new GMSetCamera(inShipCamera, CT_SMOOTHING, 0.5f)); 
+
 	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_TRACKING_MODE, TrackingMode::FOLLOW_AND_LOOK_AT));
 	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_DISTANCE_FROM_CENTER_OF_MOVEMENT, 0.f));
 	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_ROTATIONAL_SMOOTHNESS, 0.000001f));
 	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_SMOOTHING, 0.05f)); 
+	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_DESIRED_MINIMUM_Y_DIFF, 2.f));
 
 	// o-o
 	activeCamera = mapPreviewCamera;
 	QueueGraphics(new GMSetCamera(mapPreviewCamera));
 
 	// Create a dummy entity.
-	MapMan.CreateEntity("Lall", ModelMan.GetModel("obj/cube.obj"), TexMan.GetTexture("0xFFFFFFFF"));
+//	MapMan.CreateEntity("Lall", ModelMan.GetModel("obj/cube.obj"), TexMan.GetTexture("0xFFFFFFFF"));
 
 }
 
@@ -116,6 +131,26 @@ void SRState::CreateDefaultBindings()
 	bindings.AddItem(new Binding(Action::FromString("Cancel/Escape"), KEY::ESCAPE)); // Mainly removing main target.
 	bindings.AddItem(new Binding(Action::FromString("OpenMainMenu"), KEY::PLUS));
 	bindings.AddItem(new Binding(Action::FromString("OpenMainMenu"), KEY::F));
+
+		/// First input mapping
+	Binding::defaultInputDevice = InputDevice::KEYBOARD_1;
+	bindings.AddItem(new Binding(Action::CreateStartStopAction("Accelerate"), KEY::W));
+	bindings.AddItem(new Binding(Action::CreateStartStopAction("Break"), KEY::S));
+	bindings.AddItem(new Binding(Action::CreateStartStopAction("TurnLeft"), KEY::A));
+	bindings.AddItem(new Binding(Action::CreateStartStopAction("TurnRight"), KEY::D));
+
+	bindings.AddItem(new Binding(Action::FromEnum(CYCLE_ACTIVE_CAMERA), KEY::C));
+
+//	bindings.AddItem(new Binding(Action::CreateStartStopAction("Accelerate"), KEY::W));
+	/*
+	mapping->CreateBinding(BEGIN_BREAKING, KEY::S)->stopAction = STOP_BREAKING;
+	mapping->CreateBinding(BEGIN_TURNING_RIGHT, KEY::D)->stopAction = STOP_TURNING_RIGHT;
+	mapping->CreateBinding(BEGIN_TURNING_LEFT, KEY::A)->stopAction = STOP_TURNING_LEFT;
+	mapping->CreateBinding(BEGIN_BOOST, KEY::SPACE)->stopAction = STOP_BOOST;
+	mapping->CreateBinding(RESET_POSITION, KEY::R);
+	mapping->CreateBinding(TOGGLE_AUTO_PILOT, KEY::CTRL, KEY::SHIFT, KEY::E);
+	mapping->CreateBinding(CHANGE_CAMERA, KEY::C);
+	*/
 }
 
 void SRState::ProcessMessage(Message * message)
@@ -147,6 +182,29 @@ void SRState::ProcessMessage(Message * message)
 				QueueGraphics(new GMSetUIs("InputLine", GMUI::STRING_INPUT_TEXT, ""));
 				QueueGraphics(new GMSetUIb("InputLine", GMUI::ACTIVE, true));
 			}
+			if (track)
+			{
+				if (track->rsg)
+				{
+					RacingShipGlobal * rsg = track->rsg;
+					if (msg == "StartAccelerate")
+						rsg->Accelerate();
+					else if (msg == "StopAccelerate")
+						rsg->StopAccelerating();
+					if (msg == "StartBreak")
+						rsg->Reverse();
+					else if (msg == "StopBreak")
+						rsg->StopReversing();
+					if (msg == "StartTurnLeft")
+						rsg->TurnLeft();
+					else if (msg == "StopTurnLeft")
+						rsg->StopTurnLeft();
+					if (msg == "StartTurnRight")
+						rsg->TurnRight();
+					else if (msg == "StopTurnRight")
+						rsg->StopTurnRight();
+				}
+			}
 			break;
 	}
 };
@@ -164,8 +222,19 @@ void SRState::EvaluateLine(String line)
 		// Redner it?
 		track->MakeActive();
 	}
+	else if (line == "/play" || line == "/test")
+	{
+		if (!track)
+			EvaluateLine("/gen");
+		Sleep(50);
+		Entity * player = track->SpawnPlayer();
+		// Set as camera focus entity?
+		QueueGraphics(new GMSetCamera(firstPersonCamera, CT_ENTITY_TO_TRACK, player));
+		QueueGraphics(new GMSetCamera(inShipCamera, CT_ENTITY_TO_TRACK, player));
+		// Set as active camera?
+		QueueGraphics(new GMSetCamera(firstPersonCamera));
+	}
 }
-
 
 /*
 #include "SpaceRaceGameState.h"

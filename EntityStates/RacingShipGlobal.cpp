@@ -2,17 +2,20 @@
 // 2013-06-15
 
 #include "Message/Message.h"
-//#include "Physics/Messages/CollissionCallback.h"
 #include "RacingShipGlobal.h"
-//#include "EntityStates/EntityStates.h"
+
 #include "Graphics/GraphicsManager.h"
 #include "Graphics/Messages/GMSetGraphicEffect.h"
 #include "Graphics/GraphicsProperty.h"
 #include "Graphics/Effects/GraphicEffect.h"
 #include "Graphics/Effects/AlphaModelEffect.h"
-#include "../Ship.h"
-#include "Physics/PhysicsManager.h"
 #include "Graphics/Particles/Exhaust.h"
+#include "Graphics/Messages/GraphicsMessages.h"
+
+#include "Physics/Messages/PhysicsMessage.h"
+#include "../Ship.h"
+
+#include "StateManager.h"
 #include "Entity/Entity.h"
 #include "Physics/PhysicsProperty.h"
 #include "../SRPlayer.h"
@@ -20,7 +23,6 @@
 #include "AI/AI.h"
 #include "../AI/AIRacer.h"
 #include "Player/PlayerManager.h"
-#include "Graphics/Messages/GraphicsMessages.h"
 #include "String/StringUtil.h"
 
 RacingShipGlobal::RacingShipGlobal(Entity * entity, Ship * ship)
@@ -78,7 +80,10 @@ RacingShipGlobal::~RacingShipGlobal()
 }
 
 /// Function when entering this state.
-void RacingShipGlobal::OnEnter(){
+void RacingShipGlobal::OnEnter()
+{
+	QueuePhysics(new PMSetEntity(owner, PT_LINEAR_DAMPING, 0.5f));
+	QueuePhysics(new PMSetEntity(owner, PT_FRICTION, 0.01f));
 
 	/// Attach shield if not already done!
 	if (owner->graphics == NULL)
@@ -489,9 +494,9 @@ void RacingShipGlobal::ResetPosition(){
 		position = startingPosition;
 		rotation = startingRotation;
 	}
-	Physics.QueueMessage(new PMSetEntity(owner, PT_VELOCITY, owner->physics->velocity * 0.1f));
-	Physics.QueueMessage(new PMSetEntity(owner, PT_SET_ROTATION, rotation));
-	Physics.QueueMessage(new PMSetEntity(owner, PT_POSITION, position));
+	QueuePhysics(new PMSetEntity(owner, PT_VELOCITY, owner->physics->velocity * 0.1f));
+	QueuePhysics(new PMSetEntity(owner, PT_SET_ROTATION, rotation));
+	QueuePhysics(new PMSetEntity(owner, PT_POSITION, position));
 	if (ai)
 		((AIRacer*)ai)->Reset();
 }
@@ -519,18 +524,25 @@ void RacingShipGlobal::OnAccelerationUpdated(){
 	else {
 		if (thrusting){
 			relativeAcc.z += - shipType->thrust;
-			exhaust->emissionRatio = 1.0f;
-			exhaust->emissionVelocity = 0.2f;
+			if (exhaust){
+				exhaust->emissionRatio = 1.0f;
+				exhaust->emissionVelocity = 0.2f;
+			}
 		   // exhaust->ResumeEmission();
 		}
 		else {
-			exhaust->emissionRatio = 0.1f;
-			exhaust->emissionVelocity = 0.1f;
+			if (exhaust){
+				exhaust->emissionRatio = 0.1f;
+				exhaust->emissionVelocity = 0.1f;
+			}
 		  //  exhaust->PauseEmission();
 		}
 		if (boosting){
-			exhaust->emissionRatio += 0.4f;
-			exhaust->emissionVelocity += 0.1f;
+			if (exhaust)
+			{
+				exhaust->emissionRatio += 0.4f;
+				exhaust->emissionVelocity += 0.1f;
+			}
 		}
 		if (reversing)
 			relativeAcc.z += shipType->reverse;
@@ -538,14 +550,16 @@ void RacingShipGlobal::OnAccelerationUpdated(){
 	// Apply boost
 	if (boosting && this->boostRemaining > 0){
 		relativeAcc *= shipType->boostMultiplier;
-		exhaust->SetColor(Vector3f(0.4f, 0.2f, 0.4f));
+		if (exhaust)
+			exhaust->SetColor(Vector3f(0.4f, 0.2f, 0.4f));
 	}
 	else {
-		exhaust->SetColor(Vector3f(0.1f, 0.2f, 0.4f));
+		if (exhaust)
+			exhaust->SetColor(Vector3f(0.1f, 0.2f, 0.4f));
 		boosting = false;
 	}
 //	std::cout<<"\nRacingShipGlobal::OnAccelerationUpdated: Setting acceleration to: "<<relativeAcc;
-	Physics.QueueMessage(new PMSetEntity(owner, PT_ACCELERATION, relativeAcc));
+	QueuePhysics(new PMSetEntity(owner, PT_RELATIVE_ACCELERATION, relativeAcc));
 }
 void RacingShipGlobal::OnTurningUpdated(){
 	Vector3f relativeAngularAcc;
@@ -556,12 +570,18 @@ void RacingShipGlobal::OnTurningUpdated(){
 	/// Constant turning.
 	else {
 		if (left)
-			relativeAngularAcc.y += shipType->angularThrust;
-		if (right)
 			relativeAngularAcc.y -= shipType->angularThrust;
+		if (right)
+			relativeAngularAcc.y += shipType->angularThrust;
 	}
+	/// Angular acceleration in radians / second ^ 2, so decrease it a bit maybe.
+	relativeAngularAcc *= 0.01f;
 	// Send message and apply graphical effects if any.
-	Physics.QueueMessage(new PMSetEntity(owner, PT_ANGULAR_ACCELERATION, relativeAngularAcc));
+	QueuePhysics(new PMSetEntity(owner, PT_ANGULAR_ACCELERATION, relativeAngularAcc));
+	if (relativeAngularAcc.MaxPart())
+		QueuePhysics(new PMSetEntity(owner, PT_ANGULAR_DAMPING, 0.3f));
+	else
+		QueuePhysics(new PMSetEntity(owner, PT_ANGULAR_DAMPING, 0.05f));
 }
 
 

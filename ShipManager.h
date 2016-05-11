@@ -20,8 +20,8 @@ public:
 	Ship * GetShipBySource(String source);
 	List<String> GetShipNames();
 	List<Ship*> GetShips() { return ships; };
-
-	Ship * CreateShipType(String shipTypeName);
+	/// Doesn't actually create..
+	Ship * GetShipByName(String shipTypeName);
 
 	bool LoadFromDirectory(String dir);
 

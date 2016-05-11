@@ -2,9 +2,9 @@
 /// 2016-05-01
 /// o-o
 
-#include "Physics/Integrator.h"
+#include "Physics/Integrators/FirstPersonIntegrator.h"
 
-class SRIntegrator : public Integrator
+class SRIntegrator : public FirstPersonIntegrator
 {
 public:
 		/** All entities sent here should be fully dynamic! 
@@ -17,3 +17,5 @@ public:
 	virtual void IntegrateKinematicEntities(List<Entity*> & kinematicEntities, float timeInSeconds);
 
 };
+
+

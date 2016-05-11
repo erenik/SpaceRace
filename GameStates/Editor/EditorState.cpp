@@ -973,7 +973,7 @@ void EditorState::MouseClick(bool down, int x, int y, UIElement * elementClicked
 							float distanceProjectedOntoClickRay = clickRay.direction.DotProduct(camToEntity);
 							Vector3f projectedPointOnVector = camPos + distanceProjectedOntoClickRay * clickRay.direction;
 							float distanceToVector = (entity->position - projectedPointOnVector).Length();
-							float radius = entity->radius;
+							float radius = entity->Radius();
 							if (entity->physics){
 								radius = entity->physics->physicalRadius;
 								switch(entity->physics->physicsShape){
@@ -998,7 +998,7 @@ void EditorState::MouseClick(bool down, int x, int y, UIElement * elementClicked
 								}
 								default: case ShapeType::SPHERE: case ShapeType::MESH:
 									if (distanceToVector > radius){
-									//	std::cout<<"\nEntity not intersecting, distance: "<<distanceToVector<<" radius: "<<std::setw(6)<<entity->radius<<" "<<entity->name;
+									//	std::cout<<"\nEntity not intersecting, distance: "<<distanceToVector<<" radius: "<<std::setw(6)<<entity->Radius()<<" "<<entity->name;
 										continue;
 									}
 									break;

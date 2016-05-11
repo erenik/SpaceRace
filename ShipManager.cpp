@@ -238,7 +238,7 @@ List<String> ShipManager::GetShipNames(){
 	return shipNames;
 }
 
-Ship * ShipManager::CreateShipType(String shipTypeName){
+Ship * ShipManager::GetShipByName(String shipTypeName){
 	Ship * ship = GetShip(shipTypeName);
 	if (ship){
 		std::cout<<"\nShip "<<shipTypeName<<" already exists! Returning it.";

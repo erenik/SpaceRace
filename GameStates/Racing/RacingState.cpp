@@ -328,8 +328,8 @@ void Racing::OnEnter(AppState * previousState){
         Entity * entity = player->entity;
         Camera * camera = cameras[i];
 		camera->entityToTrack = entity;
-		camera->elevation = -entity->radius;
-		camera->distanceFromCentreOfMovement = entity->radius + 15.f;
+		camera->elevation = -entity->Radius();
+		camera->distanceFromCentreOfMovement = entity->Radius() + 15.f;
     }
 	/// If no local player, attach a camera to the first entity there is.
 	if (localPlayers.Size() == 0 && players.Size())
@@ -338,7 +338,7 @@ void Racing::OnEnter(AppState * previousState){
 		SRPlayer * player = players[0];
 		Entity * entity = player->entity;
 		camera->entityToTrack = entity;
-		camera->elevation = -entity->radius;
+		camera->elevation = -entity->Radius();
 		cameras.Add(camera);
 		/// Set camera to track.
 		viewports[0]->SetCameraToTrack(camera);
