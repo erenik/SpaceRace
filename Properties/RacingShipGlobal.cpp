@@ -4,6 +4,7 @@
 #include "Message/Message.h"
 #include "RacingShipGlobal.h"
 
+#include "Physics/CC.h"
 #include "Graphics/GraphicsManager.h"
 #include "Graphics/Messages/GMSetGraphicEffect.h"
 #include "Graphics/GraphicsProperty.h"
@@ -13,6 +14,7 @@
 #include "Graphics/Messages/GraphicsMessages.h"
 
 #include "Physics/Messages/PhysicsMessage.h"
+#include "MagneticProperty.h"
 #include "../Ship.h"
 
 #include "StateManager.h"
@@ -69,6 +71,7 @@ RacingShipGlobal::RacingShipGlobal(Entity * entity, Ship * ship)
 	resetRequested = false;
 	boostRequested = false;
 
+	owner->properties.AddItem(new MagneticProperty(owner));
 	ai = 0;
 };
 
@@ -82,8 +85,10 @@ RacingShipGlobal::~RacingShipGlobal()
 /// Function when entering this state.
 void RacingShipGlobal::OnEnter()
 {
-	QueuePhysics(new PMSetEntity(owner, PT_LINEAR_DAMPING, 0.5f));
-	QueuePhysics(new PMSetEntity(owner, PT_FRICTION, 0.01f));
+	QueuePhysics(new PMSetEntity(owner, PT_LINEAR_DAMPING, 0.8f));
+	QueuePhysics(new PMSetEntity(owner, PT_FRICTION, 0.001f));
+	QueuePhysics(new PMSetEntity(owner, PT_RESTITUTION, 0.001f)); // No bouncing ships here.
+	QueuePhysics(new PMSetEntity(owner, PT_COLLISION_FILTER, CC_ALL));
 
 	/// Attach shield if not already done!
 	if (owner->graphics == NULL)
@@ -173,7 +178,6 @@ void RacingShipGlobal::OnCollisionCallback(CollisionCallback * cc)
 			*/
 
 }
-
 
 void RacingShipGlobal::ProcessMessage(Message * message){
 //	std::cout<<"\nRacingShipGlobal::ProcessMessage: ";
@@ -577,11 +581,11 @@ void RacingShipGlobal::OnTurningUpdated(){
 	/// Angular acceleration in radians / second ^ 2, so decrease it a bit maybe.
 	relativeAngularAcc *= 0.01f;
 	// Send message and apply graphical effects if any.
-	QueuePhysics(new PMSetEntity(owner, PT_ANGULAR_ACCELERATION, relativeAngularAcc));
+	QueuePhysics(new PMSetEntity(owner, PT_RELATIVE_ANGULAR_ACCELERATION, relativeAngularAcc));
 	if (relativeAngularAcc.MaxPart())
-		QueuePhysics(new PMSetEntity(owner, PT_ANGULAR_DAMPING, 0.3f));
-	else
 		QueuePhysics(new PMSetEntity(owner, PT_ANGULAR_DAMPING, 0.05f));
+	else
+		QueuePhysics(new PMSetEntity(owner, PT_ANGULAR_DAMPING, 0.02f));
 }
 
 

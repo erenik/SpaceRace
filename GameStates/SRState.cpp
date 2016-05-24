@@ -11,7 +11,7 @@
 #include "Physics/SRIntegrator.h"
 #include "Physics/CollisionDetectors/FirstPersonCD.h"
 
-#include "EntityStates/RacingShipGlobal.h"
+#include "Properties/RacingShipGlobal.h"
 
 #include "Input/Action.h"
 #include "Input/Keys.h"
@@ -36,8 +36,10 @@
 #include "StateManager.h"
 #include "Audio/TrackManager.h"
 
-Camera * mapPreviewCamera = 0, * firstPersonCamera = 0, * activeCamera = 0, * inShipCamera = 0, * reverseCamera = 0;
+Camera * mapPreviewCamera = 0, * thirdPersonCamera = 0, * activeCamera = 0, * firstPersonCamera = 0, * reverseCamera = 0;
 List<Camera*> cameras;
+
+Entity * playerEntity = 0;
 
 void SetApplicationDefaults()
 {
@@ -74,26 +76,26 @@ void SRState::OnEnter(AppState * previousState)
 
 	// Set a default camera.
 	mapPreviewCamera = CameraMan.NewCamera("MapPreviewCamera", true);
-	inShipCamera = CameraMan.NewCamera("InShipCamera", true);
-	firstPersonCamera = CameraMan.NewCamera("FirstPersonCamera", true);
+	firstPersonCamera = CameraMan.NewCamera("InShipCamera", true);
+	thirdPersonCamera = CameraMan.NewCamera("FirstPersonCamera", true);
 
 //	cameras.Add(mapPreviewCamera);
-//	cameras.Add(firstPersonCamera);
+//	cameras.Add(thirdPersonCamera);
 
 	QueueGraphics(new GMSetCamera(mapPreviewCamera, CT_ROTATION, Vector3f()));
 	QueueGraphics(new GMSetCamera(mapPreviewCamera, CT_DISTANCE_FROM_CENTER_OF_MOVEMENT, 3.f));
 
 	// In-ship camera.
-	QueueGraphics(new GMSetCamera(inShipCamera, CT_TRACKING_MODE, TrackingMode::THIRD_PERSON_AIRCRAFT));
-	QueueGraphics(new GMSetCamera(inShipCamera, CT_DESIRED_MINIMUM_Y_DIFF, 0.1f));
-	QueueGraphics(new GMSetCamera(inShipCamera, CT_ROTATIONAL_SMOOTHNESS, 0.01f));
-	QueueGraphics(new GMSetCamera(inShipCamera, CT_SMOOTHING, 0.5f)); 
+	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_TRACKING_MODE, TrackingMode::THIRD_PERSON_AIRCRAFT));
+	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_DESIRED_MINIMUM_Y_DIFF, 0.1f));
+	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_ROTATIONAL_SMOOTHNESS, 0.01f));
+	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_SMOOTHING, 0.5f)); 
 
-	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_TRACKING_MODE, TrackingMode::FOLLOW_AND_LOOK_AT));
-	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_DISTANCE_FROM_CENTER_OF_MOVEMENT, 0.f));
-	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_ROTATIONAL_SMOOTHNESS, 0.000001f));
-	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_SMOOTHING, 0.05f)); 
-	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_DESIRED_MINIMUM_Y_DIFF, 2.f));
+	QueueGraphics(new GMSetCamera(thirdPersonCamera, CT_TRACKING_MODE, TrackingMode::FOLLOW_AND_LOOK_AT));
+	QueueGraphics(new GMSetCamera(thirdPersonCamera, CT_DISTANCE_FROM_CENTER_OF_MOVEMENT, 0.f));
+	QueueGraphics(new GMSetCamera(thirdPersonCamera, CT_ROTATIONAL_SMOOTHNESS, 0.000001f));
+	QueueGraphics(new GMSetCamera(thirdPersonCamera, CT_SMOOTHING, 0.05f)); 
+	QueueGraphics(new GMSetCamera(thirdPersonCamera, CT_DESIRED_MINIMUM_Y_DIFF, 2.f));
 
 	// o-o
 	activeCamera = mapPreviewCamera;
@@ -222,17 +224,44 @@ void SRState::EvaluateLine(String line)
 		// Redner it?
 		track->MakeActive();
 	}
+	if (line == "/regen")
+	{
+		if (!track) return;
+		track->GenerateMesh();
+		track->MakeActive();
+	}
 	else if (line == "/play" || line == "/test")
 	{
 		if (!track)
 			EvaluateLine("/gen");
 		Sleep(50);
-		Entity * player = track->SpawnPlayer();
+		if (playerEntity == 0)
+			playerEntity = track->SpawnPlayer();
+		else 
+			QueuePhysics(new PMSetEntity(playerEntity, PT_POSITION, track->SpawnPosition()));
 		// Set as camera focus entity?
-		QueueGraphics(new GMSetCamera(firstPersonCamera, CT_ENTITY_TO_TRACK, player));
-		QueueGraphics(new GMSetCamera(inShipCamera, CT_ENTITY_TO_TRACK, player));
+		QueueGraphics(new GMSetCamera(thirdPersonCamera, CT_ENTITY_TO_TRACK, playerEntity));
+		QueueGraphics(new GMSetCamera(firstPersonCamera, CT_ENTITY_TO_TRACK, playerEntity));
 		// Set as active camera?
 		QueueGraphics(new GMSetCamera(firstPersonCamera));
+	}
+	else if (line.StartsWith("/itLength") || line.StartsWith("/itlength"))
+	{
+		track->itLength = line.Tokenize(" ")[1].ParseFloat();
+		EvaluateLine("/gen");
+	}
+	else if (line.StartsWith("/tilt"))
+	{
+		track->turnTiltRatio = line.Tokenize(" ")[1].ParseFloat();
+		EvaluateLine("/regen");
+	}
+	else if (line.StartsWith("/save "))
+	{
+		track->Save(line - "/save ");
+	}
+	else if (line.StartsWith("/load "))
+	{
+		track->Load(line - "/load ");
 	}
 }
 

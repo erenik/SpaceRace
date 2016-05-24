@@ -5,7 +5,7 @@
 #include <cmath>
 
 #include "AIRacer.h"
-#include "../EntityStates/RacingShipGlobal.h"
+#include "Properties/RacingShipGlobal.h"
 #include "../GameStates/Racing/RacingState.h"
 #include "../SRConstants.h"
 #include "Pathfinding/NavMesh.h"

@@ -1,6 +1,7 @@
 // Emil Hedemalm
 // 2013-07-28
 
+/*
 #include "ThrusterTester.h"
 #include "../EntityStates/RacingShipGlobal.h"
 #include "../GameStates/Racing/RacingState.h"
@@ -56,3 +57,4 @@ void ThrusterTester::Process(float timeInSeconds){
 			break;
 	}
 }
+*/
