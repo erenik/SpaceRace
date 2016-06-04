@@ -12,6 +12,7 @@ class RacingShipGlobal;
 class TrackPoint
 {
 public:
+	TrackPoint(); // Only for loading.
 	TrackPoint(ConstVec3fr);
 	TrackPoint(float x, float y, float z);
 	void Nullify();

@@ -155,6 +155,8 @@ void SRState::CreateDefaultBindings()
 	*/
 }
 
+#include "Message/FileEvent.h"
+
 void SRState::ProcessMessage(Message * message)
 {
 
@@ -162,6 +164,31 @@ void SRState::ProcessMessage(Message * message)
 	ProcessCameraMessages(msg, activeCamera);
 	switch(message->type)
 	{
+		case MessageType::FILE_EVENT:
+		{
+			FileEvent * fe = (FileEvent*) message;
+			/// Check files.
+			for (int i = 0; i < fe->files.Size(); ++i)
+			{
+				String file = fe->files[i];
+				if (file.Contains(".obj"))
+				{
+					// Create test-entity with it?
+					static Entity * testEntity = 0;
+					if (testEntity)
+						MapMan.RemoveEntity(testEntity);
+					testEntity = MapMan.CreateEntity("Test"+file, ModelMan.GetModel(file), TexMan.GetTexture("0xFFFF"), Vector3f());
+				}
+			}
+			break;
+		}
+		case MessageType::DRAG_AND_DROP:
+		{
+			// Stuff?
+			DragAndDropMessage * dad = (DragAndDropMessage*) message;
+//			dad->
+			break;	
+		}
 		case MessageType::SET_STRING:
 		{
 			SetStringMessage * ssm = (SetStringMessage*) message;
@@ -255,12 +282,26 @@ void SRState::EvaluateLine(String line)
 		track->turnTiltRatio = line.Tokenize(" ")[1].ParseFloat();
 		EvaluateLine("/regen");
 	}
+	else if (line.StartsWith("/width"))
+	{
+		track->trackWidth = line.Tokenize(" ")[1].ParseFloat();
+		EvaluateLine("/regen");
+	}
 	else if (line.StartsWith("/save "))
 	{
 		track->Save(line - "/save ");
 	}
 	else if (line.StartsWith("/load "))
 	{
+		if (!track)
+			track = new SRTrack();
+		else 
+		{
+			// Disable player a while?
+			MapMan.DeleteAllEntities();
+			track->rsg = 0;
+			Sleep(10);
+		}
 		track->Load(line - "/load ");
 	}
 }

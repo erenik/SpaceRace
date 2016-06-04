@@ -35,7 +35,9 @@ void SRIntegrator::IntegrateDynamicEntities(List<Entity*> & dynamicEntities, flo
 			TrackPoint * tp = track->NearestPoint(entity->worldPosition);
 			if (!tp || tp->next == 0)
 				continue;
-			TrackPoint * next = tp->next;
+			TrackPoint * next = tp->next->next;
+			if (!next)
+				continue;
 			
 			/// Desired forward, and up-right vectors of the track.
 			Vector3f desForward = (next->pos - tp->pos).NormalizedCopy(),

@@ -11,6 +11,7 @@
 #include "TextureManager.h"
 #include "Maps/MapManager.h"
 
+#include "String/StringUtil.h"
 #include "Physics/CC.h"
 #include "StateManager.h"
 #include "Physics/Messages/PhysicsMessage.h"
@@ -27,6 +28,10 @@ Random trackRand;
 
 #define LogTrack(t,l) LogToFile("log/Track.txt", t, l, 0)
 
+TrackPoint::TrackPoint()
+{
+	Nullify();
+}
 TrackPoint::TrackPoint(ConstVec3fr p)
 {
 	Nullify();
@@ -45,10 +50,12 @@ void TrackPoint::Nullify()
 
 bool TrackPoint::WriteTo(std::fstream & file)
 {
+	pos.WriteTo(file);
 	return true;
 }
 bool TrackPoint::ReadFrom(std::fstream & file)
 {
+	pos.ReadFrom(file);
 	return true;
 }
 
@@ -110,6 +117,9 @@ void SRTrack::MakeActive()
 	// Create a dummy entity.
 	static int attempts = 0;
 	MapMan.CreateEntity("Lall", ModelMan.GetModel("obj/cube.obj"), TexMan.GetTexture("0xFFFFFFFF"), Vector3f(float(attempts++), 0,0));
+
+	/// Update the physics thingy.
+//	QueuePhysics(new PMSet(PT_AABB_SWEEPER_DIVISIONS
 
 }
 
@@ -271,7 +281,7 @@ int SRTrack::TryEndIt()
 	// Not beyond? Can turn to middle and start going back.
 	if (archIterations == 0)
 	{
-		std::cout<<"\nFinal arch start @ "<<last;
+		LogTrack("Final arch start @ "+String((int)last), INFO);
 		archStart = last;
 		archEnd = points[0];
 		if (last->pos.z > 0)
@@ -280,7 +290,6 @@ int SRTrack::TryEndIt()
 			archLeft = false;
 		
 		archSegments = (archEnd->pos - archStart->pos).Length() / (trackWidth);
-
 		mode = FINAL_CURVE;
 	}
 	return ARCH_TO_START;
@@ -327,7 +336,6 @@ int SRTrack::FinalStraight()
 
 int SRTrack::ArchToStart()
 {
-	LogTrack("ArchToStart", INFO);
 	/// Hmm.. far stretch.
 	float archRadius = (archEnd->pos - archStart->pos).Length() / 2;
 	Vector3f middle = (archEnd->pos + archStart->pos) * 0.5f;
@@ -335,7 +343,9 @@ int SRTrack::ArchToStart()
 	++archIterations;
 	// Half-circle.
 	Vector2f pos = Angle((archLeft? PI / 2.f : -PI / 2.f) + (archLeft ? 1.f : -1.f) * archIterations * PI / (float)segs).ToVector2f() * archRadius;
-	points.AddItem(new TrackPoint(middle + Vector3f(pos.x, 0, pos.y)));
+	Vector3f pointPos = middle + Vector3f(pos.x, 0, pos.y);
+	LogTrack("ArchToStart "+VectorString(pointPos), INFO);
+	points.AddItem(new TrackPoint(pointPos));
 	if (archIterations + 1 >= segs)
 		return STOP;
 	return ARCH_TO_START;
@@ -559,6 +569,8 @@ Mesh * SRTrack::GenerateMesh()
 		next->leftSide += offset;
 		next->rightSide -= offset;
 
+		LogTrack("Up: "+VectorString(point->up), INFO);
+
 //		std::cout<<"\nRight sides ("<<i<<"): "<<rightSides[i];
 //		std::cout<<"\nRight sides ("<<i+1<<"): "<<rightSides[nextIndex];
 		lastForward = forward;
@@ -688,25 +700,33 @@ Entity * SRTrack::SpawnPlayer()
 /// Oh yeah.
 bool SRTrack::Save(String fileName)
 {
-	fileName = "tracks/"+fileName;
+	fileName = "tracks/"+fileName+".track";
 	std::fstream file;
 	file.open(fileName.c_str(), std::ios_base::out | std::ios_base::binary);
 	if (!file.is_open())
 		return false;
+	if (name.Length() == 0) name = fileName;
 	name.WriteTo(file);
+	/// Write other variables, such as tilt and track width?
+	file.write((char*)&turnTiltRatio, sizeof(float));
+	file.write((char*)&trackWidth, sizeof(float));
 	WriteListTo<TrackPoint>(points, file);
 	return true;
 }
 /// Loads and makes active.
 bool SRTrack::Load(String fileName)
 {
-	fileName = "tracks/"+fileName;
+	fileName = "tracks/"+fileName+".track";
 	std::fstream file;
 	file.open(fileName.c_str(), std::ios_base::in | std::ios_base::binary);
 	if (!file.is_open())
 		return false;
 	name.ReadFrom(file);
-	track->Generate();
+	file.read((char*)&turnTiltRatio, sizeof(float));
+	file.read((char*)&this->trackWidth, sizeof(float));
+	/// Read points
+	ReadListFrom<TrackPoint>(points, file);
+	// Generate mesh.
 	track->GenerateMesh();
 	// Redner it?
 	track->MakeActive();
