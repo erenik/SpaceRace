@@ -90,6 +90,7 @@ void SRState::OnEnter(AppState * previousState)
 	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_DESIRED_MINIMUM_Y_DIFF, 0.1f));
 	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_ROTATIONAL_SMOOTHNESS, 0.01f));
 	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_SMOOTHING, 0.5f)); 
+	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_RELATIVE_POSITION, Vector3f(0, 0.55, 1.25f)));
 
 	QueueGraphics(new GMSetCamera(thirdPersonCamera, CT_TRACKING_MODE, TrackingMode::FOLLOW_AND_LOOK_AT));
 	QueueGraphics(new GMSetCamera(thirdPersonCamera, CT_DISTANCE_FROM_CENTER_OF_MOVEMENT, 0.f));
@@ -242,10 +243,10 @@ void SRState::EvaluateLine(String line)
 {
 	if (!line.StartsWith("/"))
 		return;
+	if (!track)
+		track = new SRTrack();
 	if (line == "/gen")
 	{
-		if (!track)
-			track = new SRTrack();
 		track->Generate();
 		track->GenerateMesh();
 		// Redner it?
@@ -277,9 +278,40 @@ void SRState::EvaluateLine(String line)
 		track->itLength = line.Tokenize(" ")[1].ParseFloat();
 		EvaluateLine("/gen");
 	}
+	else if (line.StartsWith("/SmoothHardEdges") || line.StartsWith("/she"))
+	{
+		track->SmoothHardEdges();
+		EvaluateLine("/regen");
+	}
+	else if (line.StartsWith("/smoothAll"))
+	{
+		track->SmoothHardEdges(1.f);
+		EvaluateLine("/regen");
+	}
+	else if (line.StartsWith("/addElevationToAvoidCollisions") || line.StartsWith("/aetac"))
+	{
+		float arg = line.Tokenize(" ").Size()  > 0? line.Tokenize(" ")[1].ParseFloat() : 1.f;
+		track->AddElevationToAvoidCollisions(arg);
+		EvaluateLine("/regen");
+	}
 	else if (line.StartsWith("/tilt"))
 	{
 		track->turnTiltRatio = line.Tokenize(" ")[1].ParseFloat();
+		EvaluateLine("/regen");
+	}
+	else if (line.StartsWith("/forwardRate"))
+	{
+		track->forwardRate = line.Tokenize(" ")[1].ParseFloat();
+		EvaluateLine("/gen");
+	}
+	else if (line.StartsWith("/turnRate"))
+	{
+		track->turnRate = line.Tokenize(" ")[1].ParseFloat();
+		EvaluateLine("/gen");
+	}
+	else if (line.StartsWith("/wallHeight") || line.StartsWith("/wh"))
+	{
+		track->wallHeight = line.Tokenize(" ")[1].ParseFloat();
 		EvaluateLine("/regen");
 	}
 	else if (line.StartsWith("/width"))

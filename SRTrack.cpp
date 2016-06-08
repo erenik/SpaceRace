@@ -46,16 +46,23 @@ TrackPoint::TrackPoint(float x, float y, float z)
 void TrackPoint::Nullify()
 {
 	next = 0;
+	isLoop = false;
 }
 
 bool TrackPoint::WriteTo(std::fstream & file)
 {
+	file.write((char*)&isLoop, sizeof(bool));
 	pos.WriteTo(file);
+	up.WriteTo(file);
+	right.WriteTo(file);
 	return true;
 }
 bool TrackPoint::ReadFrom(std::fstream & file)
 {
+	file.read((char*)&isLoop, sizeof(bool));
 	pos.ReadFrom(file);
+	up.ReadFrom(file);
+	right.ReadFrom(file);
 	return true;
 }
 
@@ -69,15 +76,21 @@ void TrackPoint::CenterSides()
 
 SRTrack::SRTrack()
 {
+	forwardRate = 0.75f;
+	turnRate = 0.85f;
+	itLength = 10.f;
 	trackWidth = 5.f;
+	wallHeight = 3.5f;
 	trackEntity = 0;
 	trackModel = 0;
 	mesh = 0;
 	rsg = 0;
+	loops = 0;
 
 	wallEntity = 0;
 	wallModel = 0;
 	wallMesh = 0;
+	collisionDistance = 25.f;
 
 	turnTiltRatio = 1.f;
 	degreesTurnRight = 0;
@@ -128,6 +141,7 @@ void SRTrack::Generate()
 {
 	mode = RANDOM_GENERATION;
 	points.Clear();
+	loops = 0;
 	// Quadratic
 	enum {
 		QUAD,
@@ -190,7 +204,6 @@ void SRTrack::Generate()
 
 		place checkpoint every 3 points or 5, can be customized */
 		points.AddItem(new TrackPoint(0,0,0)); // Start
-		itLength = trackWidth * 2;
 		points.AddItem(new TrackPoint(itLength, 0,0));
 		int which = FORWARD;
 		left = right = 0;
@@ -242,8 +255,9 @@ void SRTrack::Generate()
 				break;
 		}
 		bool collisions = true;
-		while(AddElevationToAvoidCollisions())
-			;
+		// Add as many as needed, only?
+//		while(AddElevationToAvoidCollisions())
+	//		;
 	}
 }
 
@@ -289,7 +303,8 @@ int SRTrack::TryEndIt()
 		else 
 			archLeft = false;
 		
-		archSegments = (archEnd->pos - archStart->pos).Length() / (trackWidth);
+		archSegments = (archEnd->pos - archStart->pos).Length() / (itLength) * PI;
+		++archIterations;
 		mode = FINAL_CURVE;
 	}
 	return ARCH_TO_START;
@@ -325,7 +340,7 @@ int SRTrack::FinalStraight()
 	Vector3f toStart = points[0]->pos - points.Last()->pos;
 	Vector3f dir = toStart.NormalizedCopy();
 	float dist = (toStart).Length();
-	int segs = dist / 20.f;
+	int segs = dist / itLength;
 	float segLength = dist / (segs + 1);
 	for (int i = 0; i < segs; ++i)
 	{
@@ -366,14 +381,14 @@ int SRTrack::TurnToCenter()
 }
 
 
-bool SRTrack::AddElevationToAvoidCollisions()
+bool SRTrack::AddElevationToAvoidCollisions(float ratio)
 {
 	static List<int> lastCollisionPointIndices;
 	// Fetch all points within collision distance.
 	List<int> collisionPointIndices;
 	for (int i = 0; i < points.Size(); ++i)
 	{
-		for (int j = i + 3; j < points.Size() - 3; ++j)
+		for (int j = i + 5; j < points.Size() - 5; ++j)
 		{
 			int index1 = i % points.Size(), index2 = j % points.Size();
 			if (index1 == index2)
@@ -383,7 +398,7 @@ bool SRTrack::AddElevationToAvoidCollisions()
 			float distY = AbsoluteValue(p2.y - p1.y);
 			// Weighted, half distY, 1. of XZ
 			float dist = Vector2f(distXZ, distY * 0.5f).Length();
-			if (dist < trackWidth * 1.2f)
+			if (dist < collisionDistance)
 				collisionPointIndices.AddItem(index2);
 		}
 	}
@@ -399,7 +414,7 @@ bool SRTrack::AddElevationToAvoidCollisions()
 			float dist = AbsoluteValue(j);
 			float multiplier = 1 - (dist / (float) (neighboursToRaise+1)); // Linear?
 			int index = (collisionPointIndices[i] + j + points.Size()) % points.Size();
-			points[index]->pos.y += trackWidth * multiplier; 
+			points[index]->pos.y += ratio * multiplier; 
 		}
 	}
 	lastCollisionPointIndices.Add(collisionPointIndices);
@@ -411,6 +426,29 @@ bool SRTrack::AddElevationToAvoidCollisions()
 	return false;
 }
 
+/// Mainly for the ending loops.
+bool SRTrack::SmoothHardEdges(float threshold /*= 0.96f */)
+{
+	for (int i = 0; i < points.Size(); ++i)
+	{
+		// Compare with next one.
+		TrackPoint * p = points[i], * p2 = points[(i+1) % points.Size()], * p3 = points[(i+2) % points.Size()];
+		Vector3f dir = (p2->pos - p->pos).NormalizedCopy(), dir2 = (p3->pos - p2->pos).NormalizedCopy();
+		float dot = dir.DotProduct(dir2);
+		if (dot > threshold)
+			continue; // Good enough.
+		if (p2->isLoop)
+			continue;
+		/// Equalize point in middle to be somewhere in between the other 2?
+		p2->pos = p2->pos * 0.5 + p->pos * 0.25f + p3->pos * 0.25f;
+		p2->up = p2->up * 0.5 + p->up * 0.25f + p3->up * 0.25f;
+		p2->right = p2->right * 0.25f + p->right * 0.25f + p3->right * 0.25f;
+
+//		p2->rightSide
+	}
+	return true;
+}
+
 int SRTrack::PlaceNextPoint()
 {
 	// Check past 2 points.
@@ -420,8 +458,39 @@ int SRTrack::PlaceNextPoint()
 	ang -= Angle::FromDegrees(-degreesTurnRight);
 	Vector2f newXZ = ang.ToVector2f();
 	bool clamped = false;
-	Vector3f newDir = Vector3f(newXZ.x, dir.y, newXZ.y);
+//	Angle ang(degreesPitch);
+	Vector3f newDir = Vector3f(newXZ.x, 0 /*dir.y*/, newXZ.y);
 	points.AddItem(new TrackPoint(points.Last()->pos + newDir * itLength));
+	return 0;
+}
+
+int SRTrack::MakeLoop()
+{
+	++loops;
+	/// Place some forwards first to equalize previous curves.
+	Forward(); Forward(); Forward();
+
+	/// Place points in a default-loop.
+	Vector3f forward = this->CurrDir();
+	Vector3f up = Vector3f(0,1,0);
+	Vector3f right = CurrRight();
+
+	float loopRadius = 80.f; // Radius?
+	int segments = 50;
+	float degreesPerSeg = 2 * PI / segments;
+	float loopWidth = 30.f;
+	Vector3f center = points.Last()->pos + up * loopRadius;
+	for (int i = 1; i < segments + 1; ++i)
+	{
+		float forwardRatio = cos(degreesPerSeg * i - PI / 2);
+		float upRatio = sin(degreesPerSeg * i - PI / 2);
+		TrackPoint * tp = new TrackPoint(center + forwardRatio * forward * loopRadius + upRatio * up * loopRadius + right * loopWidth * i / (float) segments);
+		/// Set up-vector to be toward the center of the loop.
+		tp->up = (center - tp->pos).NormalizedCopy();
+		tp->right = right;
+		tp->isLoop = true;
+		points.AddItem(tp);
+	}
 	return 0;
 }
 
@@ -435,7 +504,9 @@ int SRTrack::Forward()
 		++degreesTurnRight;
 
 	PlaceNextPoint();
-	if (trackRand.Randf() > 0.65f)
+	if (degreesTurnRight == 0 && loops < 1 && trackRand.Randf() > 0.92f)
+		MakeLoop();
+	if (trackRand.Randf() < forwardRate)
 		return FORWARD;
 	else // Turn!
 	{
@@ -458,6 +529,11 @@ Vector3f SRTrack::CurrDir()
 	return (points.Last()->pos - points[points.Size() - 2]->pos).NormalizedCopy();
 }
 
+Vector3f SRTrack::CurrRight()
+{
+	return CurrDir().CrossProduct(Vector3f(0,1,0)).NormalizedCopy();
+}
+
 // Saved into X and Y
 Vector2f SRTrack::CurrDirXZ()
 {
@@ -476,7 +552,7 @@ int SRTrack::TurnLeft()
 	PlaceNextPoint();
 	right = 0;
 	++left;
-	if (trackRand.Randf() < 0.85f)
+	if (trackRand.Randf() < turnRate)
 		return TURN_LEFT;
 	left = 0;
 	return FORWARD;
@@ -503,7 +579,7 @@ int SRTrack::TurnRight()
 	ClampFloat(degreesTurnRight, -maxTurnPerSeg, maxTurnPerSeg);
 	PlaceNextPoint();
 	++right;
-	if (trackRand.Randf() < 0.85f)
+	if (trackRand.Randf() < turnRate)
 		return TURN_RIGHT;
 	right = 0;
 	return FORWARD;
@@ -536,44 +612,73 @@ Mesh * SRTrack::GenerateMesh()
 
 	// First copy-em over. They will later be adjusted.
 	Vector3f lastForward(1,0,0);
+	Vector3f lastPointPos = points.Last()->pos;
+
+	/// Reset all vars first.
+	for (int i = 0; i < points.Size(); ++i)
+	{
+		TrackPoint * point = points[i];
+		point->CenterSides();
+		if (point->isLoop)
+			continue;
+		point->right = point->up = Vector3f();
+	}
+
+	/// Recalc all sides and up-vectors where needed.
 	for (int i = 0; i < points.Size(); ++i)
 	{
 		int thisIndex = i, nextIndex = (i+1) % points.Size();
-		TrackPoint * point = points[i], * next = points[nextIndex];
+		TrackPoint * previous = points[(i - 1 + points.Size()) % points.Size()], * point = points[i], * next = points[nextIndex];
 	
-		point->CenterSides();
-		next->CenterSides();
-
 		// For each point, check where it's going.
-		Vector3f forward = (next->pos - point->pos).NormalizedCopy();
-		Vector3f left = forward.CrossProduct(Vector3f(0,-1,0)).NormalizedCopy();
-		Vector3f up = forward.CrossProduct(left).NormalizedCopy();
-
+		Vector3f forward = (next->pos - previous->pos).NormalizedCopy();
+		if (point->right.MaxPart() == 0)
+			point->right = -forward.CrossProduct(Vector3f(0,-1,0)).NormalizedCopy();
+		if (point->up.MaxPart() == 0)
+			point->up = forward.CrossProduct(-point->right).NormalizedCopy();
 		point->next = next;
-		point->right = -left;
-		point->up = up;
+//		LogTrack("Up: "+VectorString(point->up), INFO);
+		lastForward = forward;
+	}
 
+	/// Apply tilt to Up-vectors.
+	for (int i = 0; i < points.Size(); ++i)
+	{
+		TrackPoint * previous = points[(i - 1 + points.Size()) % points.Size()], * point = points[i], * next = points[(i+1) % points.Size()];
 		// Check tilt, based on turn.
-		float leftRatio = lastForward.DotProduct(left);
+		float distToLastPoint = (lastPointPos - point->pos).Length();
+		if (distToLastPoint > 10.f)
+			distToLastPoint = 0.f;
+		float leftRatio = lastForward.DotProduct(-point->right) * distToLastPoint * 0.1f;
 		float radiansToTilt = leftRatio * turnTiltRatio; 
 		float rTilt = radiansToTilt;
 		float adjustedTrackWidth = trackWidth; // * (1 + AbsoluteValue(leftRatio) * 2.f);
-		float w2 = adjustedTrackWidth * 0.25f;
+		float w2 = adjustedTrackWidth * (1 / 6.f);
+		
+		/// If regular point, adjust tilt of up-vector for the walls (not for loop-segments, etc.)
+		if (point->isLoop)
+		{
+			rTilt = 0;
+		}
+		Vector3f newRight = (cos(rTilt) * -point->right + sin(rTilt) * point->up);
+		Vector3f newUp = (-sin(rTilt) * -point->right + cos(rTilt) * point->up);
+		Vector3f offset = newRight * w2;
 
-		Vector3f offset = w2 * (cos(rTilt) * left + sin(rTilt) * up);
+		/// Save new directions? Or just keep temporarily?
+		point->up = newUp;
+		point->right = newRight;
 
-		point->up = (-sin(rTilt) * left + cos(rTilt) * up);
 
 		point->leftSide += offset;
 		point->rightSide -= offset;
 		next->leftSide += offset;
 		next->rightSide -= offset;
+		previous->leftSide += offset;
+		previous->rightSide -= offset;
 
-		LogTrack("Up: "+VectorString(point->up), INFO);
-
-//		std::cout<<"\nRight sides ("<<i<<"): "<<rightSides[i];
-//		std::cout<<"\nRight sides ("<<i+1<<"): "<<rightSides[nextIndex];
+		Vector3f forward = (next->pos - previous->pos).NormalizedCopy();
 		lastForward = forward;
+		lastPointPos = point->pos;
 	}
 
 	// Create mesh.
@@ -616,7 +721,6 @@ Mesh * SRTrack::GenerateWalls()
 	// Based on previous left/right-sides. Create walls.
 	for (int i = 0; i < points.Size(); ++i)
 	{
-		float wallHeight = 3.5f;
 		TrackPoint * tp = points[i];
 		tp->leftSideWall = tp->leftSide;
 		tp->rightSideWall = tp->rightSide;

@@ -21,6 +21,7 @@ public:
 	/// Resets left/rightside to be pos.
 	void CenterSides();
 	Vector3f pos, up, right;
+	bool isLoop;
 	/// Points left and ride marking end of track, beginning of wall.
 	Vector3f leftSide, rightSide, leftSideWall, rightSideWall; // Wall being upper ledge of wall.
 	TrackPoint * next;
@@ -66,6 +67,20 @@ public:
 	float degreesTurnRight;
 	/// Max degrees turn per segment. Default 15?
 	float maxTurnPerSeg;
+	/// Default 30? Since that is nice width of the track.
+	float collisionDistance;
+	/// Default 3.5f.
+	float wallHeight;
+	/// Default 0.75f.
+	float forwardRate;
+	/// Default 0.85f
+	float turnRate;
+
+	/// Returns true if still need iterative calls to this function.
+	bool AddElevationToAvoidCollisions(float ratio = 1.f);
+	/// Mainly for the ending loops.
+	bool SmoothHardEdges(float threshold = 0.96f);
+
 private:
 
 	enum {
@@ -94,6 +109,7 @@ private:
 
 	// Normalized.
 	Vector3f CurrDir();
+	Vector3f CurrRight();
 	// Saved into X and Y, Normalized.
 	Vector2f CurrDirXZ();
 	/// Called after giving instructions (Forward, TurnLeft, etc.). Calculates new pieces to properly downscale heavy curves etc. so tilts are properly calculated later.
@@ -106,16 +122,18 @@ private:
 	int TurnToStart(); // Final turn-n-forwards.
 	int TryEndIt();
 	int ArchToStart();
-	/// Returns true if still need iterative calls to this function.
-	bool AddElevationToAvoidCollisions();
 	int TurnToCenter();
 	int GoToCenterZ();
 	int FinalStraight();
+
+	/// Should be called just once, maybe.
+	int MakeLoop();
 
 	int left, right, forward, iterations;
 	int attemptsToEnd;
 	int archIterations;
 	bool archLeft;
+	bool loops; // Number of loops.
 	int archSegments;
 	TrackPoint * archStart, * archEnd; // For longer arches, reset to 0,0,0 once arch completes or is canceled.
 
