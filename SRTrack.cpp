@@ -86,6 +86,11 @@ SRTrack::SRTrack()
 	mesh = 0;
 	rsg = 0;
 	loops = 0;
+	minLoopRadius = 40.f;
+	maxLoopRadius = 80.f;
+
+	maxLoops = 2;
+	loopChance = 0.05f;
 
 	wallEntity = 0;
 	wallModel = 0;
@@ -397,7 +402,7 @@ bool SRTrack::AddElevationToAvoidCollisions(float ratio)
 			float distXZ = (Vector2f(p2.x, p2.z) - Vector2f(p1.x, p1.z)).Length();
 			float distY = AbsoluteValue(p2.y - p1.y);
 			// Weighted, half distY, 1. of XZ
-			float dist = Vector2f(distXZ, distY * 0.5f).Length();
+			float dist = Vector2f(distXZ, distY * 2.f).Length();
 			if (dist < collisionDistance)
 				collisionPointIndices.AddItem(index2);
 		}
@@ -467,15 +472,18 @@ int SRTrack::PlaceNextPoint()
 int SRTrack::MakeLoop()
 {
 	++loops;
-	/// Place some forwards first to equalize previous curves.
+	/// Place some forwards first to equalize previous curves. (the various 
 	Forward(); Forward(); Forward();
 
 	/// Place points in a default-loop.
 	Vector3f forward = this->CurrDir();
 	Vector3f up = Vector3f(0,1,0);
 	Vector3f right = CurrRight();
+	Vector3f offsetDir = right;
+	if (trackRand.Randf() > 0.5f)
+		offsetDir = -offsetDir; // Make a left-ending loop.
 
-	float loopRadius = 80.f; // Radius?
+	float loopRadius = trackRand.Randf(maxLoopRadius - minLoopRadius) + minLoopRadius; // Radius?
 	int segments = 50;
 	float degreesPerSeg = 2 * PI / segments;
 	float loopWidth = 30.f;
@@ -484,9 +492,10 @@ int SRTrack::MakeLoop()
 	{
 		float forwardRatio = cos(degreesPerSeg * i - PI / 2);
 		float upRatio = sin(degreesPerSeg * i - PI / 2);
-		TrackPoint * tp = new TrackPoint(center + forwardRatio * forward * loopRadius + upRatio * up * loopRadius + right * loopWidth * i / (float) segments);
+		Vector3f rightOffset = offsetDir * loopWidth * i / (float) segments;
+		TrackPoint * tp = new TrackPoint(center + forwardRatio * forward * loopRadius + upRatio * up * loopRadius + rightOffset);
 		/// Set up-vector to be toward the center of the loop.
-		tp->up = (center - tp->pos).NormalizedCopy();
+		tp->up = (center + rightOffset - tp->pos).NormalizedCopy();
 		tp->right = right;
 		tp->isLoop = true;
 		points.AddItem(tp);
@@ -504,7 +513,7 @@ int SRTrack::Forward()
 		++degreesTurnRight;
 
 	PlaceNextPoint();
-	if (degreesTurnRight == 0 && loops < 1 && trackRand.Randf() > 0.92f)
+	if (degreesTurnRight == 0 && loops < maxLoops && trackRand.Randf() < loopChance)
 		MakeLoop();
 	if (trackRand.Randf() < forwardRate)
 		return FORWARD;
@@ -603,17 +612,10 @@ int SRTrack::TurnTo(ConstVec3fr dir)
 	return TURN_NOT_REACHED_YET;
 }
 
-// Generates playable mesh field.
-Mesh * SRTrack::GenerateMesh()
+/// Calculates Up- and Right-vectors. Skips those with already non-0 values, unless force is true.
+void SRTrack::CalculateUpRightVectors(bool force)
 {
-	// Pull off from rendering first?
-	MapMan.RemoveEntities(trackEntities);
-	Sleep(100);
-
-	// First copy-em over. They will later be adjusted.
 	Vector3f lastForward(1,0,0);
-	Vector3f lastPointPos = points.Last()->pos;
-
 	/// Reset all vars first.
 	for (int i = 0; i < points.Size(); ++i)
 	{
@@ -623,23 +625,41 @@ Mesh * SRTrack::GenerateMesh()
 			continue;
 		point->right = point->up = Vector3f();
 	}
-
 	/// Recalc all sides and up-vectors where needed.
 	for (int i = 0; i < points.Size(); ++i)
 	{
 		int thisIndex = i, nextIndex = (i+1) % points.Size();
 		TrackPoint * previous = points[(i - 1 + points.Size()) % points.Size()], * point = points[i], * next = points[nextIndex];
-	
+		if (point->isLoop)
+			continue;
 		// For each point, check where it's going.
 		Vector3f forward = (next->pos - previous->pos).NormalizedCopy();
 		if (point->right.MaxPart() == 0)
-			point->right = -forward.CrossProduct(Vector3f(0,-1,0)).NormalizedCopy();
+			point->right = forward.CrossProduct(Vector3f(0,1,0)).NormalizedCopy();
 		if (point->up.MaxPart() == 0)
 			point->up = forward.CrossProduct(-point->right).NormalizedCopy();
-		point->next = next;
 //		LogTrack("Up: "+VectorString(point->up), INFO);
 		lastForward = forward;
 	}
+}
+
+// Generates playable mesh field.
+Mesh * SRTrack::GenerateMesh()
+{
+	// Pull off from rendering first?
+	MapMan.RemoveEntities(trackEntities);
+	Sleep(100);
+	CalculateUpRightVectors();
+	/// Set pointers for next/(previous) points?
+	for (int i = 0; i < points.Size(); ++i)
+	{
+		points[i]->next = points[(i+1) % points.Size()];
+	}
+
+
+	// First copy-em over. They will later be adjusted.
+	Vector3f lastForward(1,0,0);
+	Vector3f lastPointPos = points.Last()->pos;
 
 	/// Apply tilt to Up-vectors.
 	for (int i = 0; i < points.Size(); ++i)
@@ -651,7 +671,7 @@ Mesh * SRTrack::GenerateMesh()
 			distToLastPoint = 0.f;
 		float leftRatio = lastForward.DotProduct(-point->right) * distToLastPoint * 0.1f;
 		float radiansToTilt = leftRatio * turnTiltRatio; 
-		float rTilt = radiansToTilt;
+		float rTilt = -radiansToTilt;
 		float adjustedTrackWidth = trackWidth; // * (1 + AbsoluteValue(leftRatio) * 2.f);
 		float w2 = adjustedTrackWidth * (1 / 6.f);
 		
@@ -660,21 +680,21 @@ Mesh * SRTrack::GenerateMesh()
 		{
 			rTilt = 0;
 		}
-		Vector3f newRight = (cos(rTilt) * -point->right + sin(rTilt) * point->up);
-		Vector3f newUp = (-sin(rTilt) * -point->right + cos(rTilt) * point->up);
-		Vector3f offset = newRight * w2;
+		Vector3f newRight = (cos(rTilt) * point->right + sin(rTilt) * point->up);
+		Vector3f newUp = (-sin(rTilt) * point->right + cos(rTilt) * point->up);
+		Vector3f offsetRight = newRight * w2;
 
 		/// Save new directions? Or just keep temporarily?
 		point->up = newUp;
 		point->right = newRight;
 
 
-		point->leftSide += offset;
-		point->rightSide -= offset;
-		next->leftSide += offset;
-		next->rightSide -= offset;
-		previous->leftSide += offset;
-		previous->rightSide -= offset;
+		point->leftSide -= offsetRight;
+		point->rightSide += offsetRight;
+		next->leftSide -= offsetRight;
+		next->rightSide += offsetRight;
+		previous->leftSide -= offsetRight;
+		previous->rightSide += offsetRight;
 
 		Vector3f forward = (next->pos - previous->pos).NormalizedCopy();
 		lastForward = forward;
@@ -686,7 +706,7 @@ Mesh * SRTrack::GenerateMesh()
 		delete mesh;
 	mesh = new Mesh();
 	EMesh * em = new EMesh("Generated track");
-
+	/// Adds quads for the main track.
 	for (int i = 0; i < points.Size(); ++i)
 	{
 		int thisIndex = i, nextIndex = (i+1) % points.Size();
@@ -711,7 +731,7 @@ Mesh * SRTrack::GenerateMesh()
 		QueueGraphics(new GMBufferMesh(mesh));
 		QueuePhysics(new PMRecalculatePhysicsMesh(mesh));
 	};
-	// For each point, generate checkpoints?
+	// For each point, generate walls.
 	GenerateWalls();
 	return mesh;
 }
@@ -721,11 +741,11 @@ Mesh * SRTrack::GenerateWalls()
 	// Based on previous left/right-sides. Create walls.
 	for (int i = 0; i < points.Size(); ++i)
 	{
-		TrackPoint * tp = points[i];
+		TrackPoint * tp = points[i], * next = points[(i+1)% points.Size()];
 		tp->leftSideWall = tp->leftSide;
 		tp->rightSideWall = tp->rightSide;
 
-		Vector3f forward = (tp->next->pos - tp->pos).NormalizedCopy();
+		Vector3f forward = (next->pos - tp->pos).NormalizedCopy();
 		Vector3f right = tp->right;
 		Vector3f up = tp->up;
 		tp->leftSideWall += up * wallHeight; //std::cout<<"\nLsw: "<<lsw;
@@ -785,13 +805,12 @@ Entity * SRTrack::SpawnPlayer()
 	// Spawn facing next point?
 	Vector3f toNext = CurrDir();
 	Angle angle(toNext);
-	float radians = angle.Radians() - PI / 2;
-	entity->Rotate(Vector3f(0, radians, 0));
 
 	QueuePhysics(new PMSetEntity(entity, PT_PHYSICS_TYPE, PhysicsType::DYNAMIC));
 	QueuePhysics(new PMSetEntity(entity, PT_USE_QUATERNIONS, true));
 //	QueuePhysics(new PMSetEntity(entity, PT_REQ, PhysicsType::DYNAMIC));
 	MapMan.AddEntity(entity);
+	ResetPosition(entity); // Place position/rotation.
 	// Give it input focus or whatever?
 	rsg = new RacingShipGlobal(entity, ship);
 	entity->properties.AddItem(rsg);
@@ -799,6 +818,19 @@ Entity * SRTrack::SpawnPlayer()
 	rsg->inputFocus = true;
 
 	return entity;
+}
+
+void SRTrack::DespawnPlayer(Entity * playerEntity)
+{
+	MapMan.DeleteEntity(playerEntity);
+}
+
+void SRTrack::ResetPosition(Entity * playerEntity)
+{
+	float radians = PI / 2;
+	QueuePhysics(new PMSetEntity(playerEntity, PT_ROTATION_Y, radians));
+	QueuePhysics(new PMSetEntity(playerEntity, PT_POSITION, track->SpawnPosition()));
+	QueuePhysics(new PMSetEntity(playerEntity, PT_VELOCITY, Vector3f()));
 }
 
 /// Oh yeah.
@@ -814,6 +846,7 @@ bool SRTrack::Save(String fileName)
 	/// Write other variables, such as tilt and track width?
 	file.write((char*)&turnTiltRatio, sizeof(float));
 	file.write((char*)&trackWidth, sizeof(float));
+	file.write((char*)&wallHeight, sizeof(float));
 	WriteListTo<TrackPoint>(points, file);
 	return true;
 }
@@ -828,6 +861,7 @@ bool SRTrack::Load(String fileName)
 	name.ReadFrom(file);
 	file.read((char*)&turnTiltRatio, sizeof(float));
 	file.read((char*)&this->trackWidth, sizeof(float));
+	file.read((char*)&this->wallHeight, sizeof(float));
 	/// Read points
 	ReadListFrom<TrackPoint>(points, file);
 	// Generate mesh.

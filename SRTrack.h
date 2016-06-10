@@ -37,6 +37,8 @@ public:
 
 	// Generates field.
 	void Generate();
+	/// Calculates Up- and Right-vectors. Skips those with already non-0 values, unless force is true.
+	void CalculateUpRightVectors(bool force = false);
 	// Generates playable mesh field.
 	Mesh * GenerateMesh();
 	Mesh * GenerateWalls();
@@ -44,6 +46,8 @@ public:
 
 	/// Spawns player into map. Gives it input focus too? <- should change later
 	Entity * SpawnPlayer();
+	void DespawnPlayer(Entity * playerEntity);
+	void ResetPosition(Entity * playerEntity);
 
 	/// Oh yeah.
 	virtual bool Save(String toFile);
@@ -75,6 +79,12 @@ public:
 	float forwardRate;
 	/// Default 0.85f
 	float turnRate;
+	/// Default 40 and 80 respectively
+	float minLoopRadius, maxLoopRadius;
+	/// Default 2.
+	float maxLoops;
+	/// Default 0.05
+	float loopChance;
 
 	/// Returns true if still need iterative calls to this function.
 	bool AddElevationToAvoidCollisions(float ratio = 1.f);

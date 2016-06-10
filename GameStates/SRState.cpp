@@ -245,6 +245,12 @@ void SRState::EvaluateLine(String line)
 		return;
 	if (!track)
 		track = new SRTrack();
+
+	List<String> args = line.Tokenize(" ");
+	String arg1;
+	if (args.Size() > 1)
+		arg1 = args[1];
+
 	if (line == "/gen")
 	{
 		track->Generate();
@@ -266,7 +272,7 @@ void SRState::EvaluateLine(String line)
 		if (playerEntity == 0)
 			playerEntity = track->SpawnPlayer();
 		else 
-			QueuePhysics(new PMSetEntity(playerEntity, PT_POSITION, track->SpawnPosition()));
+			track->ResetPosition(playerEntity);
 		// Set as camera focus entity?
 		QueueGraphics(new GMSetCamera(thirdPersonCamera, CT_ENTITY_TO_TRACK, playerEntity));
 		QueueGraphics(new GMSetCamera(firstPersonCamera, CT_ENTITY_TO_TRACK, playerEntity));
@@ -290,7 +296,8 @@ void SRState::EvaluateLine(String line)
 	}
 	else if (line.StartsWith("/addElevationToAvoidCollisions") || line.StartsWith("/aetac"))
 	{
-		float arg = line.Tokenize(" ").Size()  > 0? line.Tokenize(" ")[1].ParseFloat() : 1.f;
+		List<String> args = line.Tokenize(" ");
+		float arg = args.Size() > 1 ? args[1].ParseFloat() : 1.f;
 		track->AddElevationToAvoidCollisions(arg);
 		EvaluateLine("/regen");
 	}
@@ -302,6 +309,26 @@ void SRState::EvaluateLine(String line)
 	else if (line.StartsWith("/forwardRate"))
 	{
 		track->forwardRate = line.Tokenize(" ")[1].ParseFloat();
+		EvaluateLine("/gen");
+	}
+	else if (line.StartsWith("/maxLoops"))
+	{
+		track->maxLoops = arg1.ParseInt();
+		EvaluateLine("/gen");
+	}
+	else if (line.StartsWith("/loopChance"))
+	{
+		track->loopChance = arg1.ParseFloat();
+		EvaluateLine("/gen");
+	}
+	else if (line.StartsWith("/minLoopRadius"))
+	{
+		track->minLoopRadius = arg1.ParseFloat();
+		EvaluateLine("/gen");
+	}
+	else if (line.StartsWith("/maxLoopRadius"))
+	{
+		track->maxLoopRadius = arg1.ParseFloat();
 		EvaluateLine("/gen");
 	}
 	else if (line.StartsWith("/turnRate"))
@@ -329,9 +356,9 @@ void SRState::EvaluateLine(String line)
 			track = new SRTrack();
 		else 
 		{
-			// Disable player a while?
-			MapMan.DeleteAllEntities();
-			track->rsg = 0;
+			// Disable player a while? Why?
+			track->DespawnPlayer(playerEntity);
+			playerEntity = 0;
 			Sleep(10);
 		}
 		track->Load(line - "/load ");
