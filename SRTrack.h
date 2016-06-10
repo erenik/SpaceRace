@@ -42,6 +42,8 @@ public:
 	// Generates playable mesh field.
 	Mesh * GenerateMesh();
 	Mesh * GenerateWalls();
+	List<Entity*> GenerateSupportStructures();
+	List<Entity*> GenerateAudienceStructures();
 	Vector3f SpawnPosition();
 
 	/// Spawns player into map. Gives it input focus too? <- should change later
@@ -148,6 +150,7 @@ private:
 	TrackPoint * archStart, * archEnd; // For longer arches, reset to 0,0,0 once arch completes or is canceled.
 
 	List<Entity*> trackEntities;
+	List<Entity*> audienceStructs;
 	Entity * trackEntity, * wallEntity; // The actual road.
 	Model * trackModel, * wallModel;
 	Mesh * mesh, * wallMesh;

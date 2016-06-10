@@ -22,6 +22,7 @@
 
 #include "Util/List/ListUtil.h"
 #include "File/LogFile.h"
+#include "File/FileUtil.h"
 
 #include "Random/Random.h"
 Random trackRand;
@@ -128,6 +129,7 @@ void SRTrack::MakeActive()
 	}
 	// Add all.
 	MapMan.AddEntities(trackEntities);
+	MapMan.AddEntities(audienceStructs);
 	// Add other relevant entities to represent the track.
 
 	// Add scenery
@@ -733,6 +735,11 @@ Mesh * SRTrack::GenerateMesh()
 	};
 	// For each point, generate walls.
 	GenerateWalls();
+	// Add support-structures for the track.
+	GenerateSupportStructures();
+	// Add buildings.
+	GenerateAudienceStructures();
+
 	return mesh;
 }
 
@@ -784,6 +791,69 @@ Mesh * SRTrack::GenerateWalls()
 		QueuePhysics(new PMRecalculatePhysicsMesh(wallMesh));
 	};
 	return wallMesh;	
+}
+
+List<Entity*> SRTrack::GenerateSupportStructures()
+{
+	int supportStructureInterval = 5;
+	// Do every X points?
+	for (int i = 0; i < points.Size(); i += supportStructureInterval)
+	{
+		
+	}
+	return List<Entity*>();
+}
+
+List<Entity*> SRTrack::GenerateAudienceStructures()
+{
+	if (audienceStructs.Size())
+		MapMan.DeleteEntities(audienceStructs);
+	audienceStructs.Clear();
+	int numBuildings = 15;
+	String dir = "./obj/props/audienceStructs/";
+	List<String> models;
+	int ok = GetFilesInDirectory(dir, models);
+	if (models.Size() == 0){
+		LogMain("Unable to find any audience structure models", ERROR);
+		return audienceStructs;
+	}
+	for (int i = 0; i < numBuildings; ++i)
+	{
+		/// Fetch model.
+		Model * model = ModelMan.GetModel(dir + models[trackRand.Randi() % models.Size()]);
+		float radius = model->Radius() + trackWidth;
+		float radiusSq = radius * radius;
+		// Find a good place close to some random point.
+		for (int j = 0; j < 100; ++j)
+		{
+			TrackPoint * tp = points[trackRand.Randi() % points.Size()];
+			Vector3f randomVec(trackRand.Randf() - 0.5f, 0, trackRand.Randf() - 0.5f);
+			randomVec.Normalize();
+			Vector3f position = tp->pos + randomVec * radius;
+			position.y = 0;
+			/// Check dist to all other points.
+			bool skip = false;
+			for (int k = 0; k < points.Size(); ++k)
+			{
+				TrackPoint * tp2 = points[k];
+				float distSq = (Vector2f(position.x, position.z) - Vector2f(tp2->pos.x, tp2->pos.z)).LengthSquared();
+				if (distSq < radiusSq)
+				{
+					skip = true;
+					break;
+				}
+			}
+			if (skip)
+				continue;
+
+			/// Place building.
+			Entity * e = EntityMan.CreateEntity("AudienceBuilding"+String(i), model, TexMan.GetTexture("0xFFFF"));
+			e->SetPosition(position);
+			audienceStructs.AddItem(e);
+			break;
+		}
+	}
+	return audienceStructs;
 }
 
 Vector3f SRTrack::SpawnPosition()
