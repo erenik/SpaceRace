@@ -712,10 +712,47 @@ Mesh * SRTrack::GenerateMesh()
 	for (int i = 0; i < points.Size(); ++i)
 	{
 		int thisIndex = i, nextIndex = (i+1) % points.Size();
-		em->AddPlane(points[nextIndex]->leftSide, 
-			points[thisIndex]->leftSide, 
-			points[thisIndex]->rightSide, 
-			points[nextIndex]->rightSide);
+		TrackPoint * point = points[thisIndex],
+			* nextPoint = points[nextIndex];
+		Vector3f nextLeft = nextPoint->leftSide,
+			left = point->leftSide,
+			nextRight = nextPoint->rightSide,
+			right = point->rightSide;
+		Vector3f center = point->pos, nextCenter = nextPoint->pos;
+		Vector3f up = point->up;
+		Vector3f centerDown = -up;
+		Vector3f nextCenterDown = -nextPoint->up;
+
+		/// Center-plane. Down a bit?
+#ifdef WHY
+		/// Initial simple version.
+		em->AddPlane(nextLeft, 
+			left, 
+			right, 
+			nextRight);
+#endif
+		/// First custom-shape version.
+		float ratioCenter = 0.5f;
+		float ratioEdge = 1 - ratioCenter;
+		Vector3f midLeft = center * ratioCenter + left * ratioEdge,
+			midRight = center * ratioCenter + right * ratioEdge,
+			nextMidLeft = nextCenter * ratioCenter + nextLeft * ratioEdge,
+			nextMidRight = nextCenter * ratioCenter + nextRight * ratioEdge;
+		em->AddPlane(nextMidLeft + nextCenterDown,  // Middle
+			midLeft + centerDown, 
+			midRight + centerDown, 
+			nextMidRight + nextCenterDown);
+		em->AddPlane(nextLeft, 	// Left?
+			left, 
+			midLeft + centerDown, 
+			nextMidLeft + nextCenterDown);
+		em->AddPlane(nextMidRight + nextCenterDown,  // Right
+			midRight + centerDown, 
+			right, 
+			nextRight);
+		// Set UV-coordinates?
+		// Side-planes.
+//		em
 	}
 	mesh->LoadDataFrom(em);
 	delete em;

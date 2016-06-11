@@ -53,8 +53,8 @@ void SRIntegrator::IntegrateDynamicEntities(List<Entity*> & dynamicEntities, flo
 			Vector3f diffForwardCurrForward = forwardVec - desForward;
 			/// Pitch needed?
 			float pitchNeeded = diffForwardCurrForward.DotProduct(upVec);
-			if (AbsoluteValue(pitchNeeded) > 0.1f)
-				std::cout<<"\nPitch needed: "<<pitchNeeded;
+//			if (AbsoluteValue(pitchNeeded) > 0.1f)
+	//			std::cout<<"\nPitch needed: "<<pitchNeeded;
 			if (desForwardDotCurrForward > 0)
 				pitchNeeded *= -1;
 			// Rotate slightly around side-vector.
@@ -63,8 +63,8 @@ void SRIntegrator::IntegrateDynamicEntities(List<Entity*> & dynamicEntities, flo
 			/// Barrel-roll.
 			Vector3f diffUpCurrUp = upVec - desUp;
 			float barrelNeeded = diffUpCurrUp.DotProduct(rightVec);
-			if (AbsoluteValue(barrelNeeded) > 0.1f)
-				std::cout<<"\nBarrel needed: "<<barrelNeeded;
+	//		if (AbsoluteValue(barrelNeeded) > 0.1f)
+	//			std::cout<<"\nBarrel needed: "<<barrelNeeded;
 			entity->physics->angularVelocity += forwardVec * barrelNeeded * timeInSeconds * 0.1f;
 
 			/// Old rolling
