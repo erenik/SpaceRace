@@ -24,6 +24,10 @@ public:
 	bool isLoop;
 	/// Points left and ride marking end of track, beginning of wall.
 	Vector3f leftSide, rightSide, leftSideWall, rightSideWall; // Wall being upper ledge of wall.
+	Vector3f leftSideWallOuter, rightSideWallOuter; // Outer upper coordinates of the wall.
+	Vector3f leftOuter, rightOuter; // Outer sides - ground-level.
+	Vector3f lowerLeft, lowerRight; // Bottom corners for the outer frame.
+
 	TrackPoint * next;
 };
 
@@ -42,6 +46,7 @@ public:
 	// Generates playable mesh field.
 	Mesh * GenerateMesh();
 	Mesh * GenerateWalls();
+	Mesh * GenerateTrackFrame();
 	List<Entity*> GenerateSupportStructures();
 	List<Entity*> GenerateAudienceStructures();
 	Vector3f SpawnPosition();
@@ -151,9 +156,9 @@ private:
 
 	List<Entity*> trackEntities;
 	List<Entity*> audienceStructs;
-	Entity * trackEntity, * wallEntity; // The actual road.
-	Model * trackModel, * wallModel;
-	Mesh * mesh, * wallMesh;
+	Entity * trackEntity, * wallEntity, * frameEntity; // The actual road.
+	Model * trackModel, * wallModel, * frameModel;
+	Mesh * mesh, * wallMesh, * frameMesh;
 	List<TrackPoint *> points;
 	List<Checkpoint> checkpoints;
 };

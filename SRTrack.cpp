@@ -96,6 +96,10 @@ SRTrack::SRTrack()
 	wallEntity = 0;
 	wallModel = 0;
 	wallMesh = 0;
+
+	frameEntity = 0;
+	frameModel = 0;
+	frameMesh = 0;
 	collisionDistance = 25.f;
 
 	turnTiltRatio = 1.f;
@@ -126,6 +130,12 @@ void SRTrack::MakeActive()
 		wallEntity = EntityMan.CreateEntity("Walls", wallModel, TexMan.GetTexture("img/track/part_2_diffuse.png"));
 		QueuePhysics(new PMSetEntity(wallEntity, PT_PHYSICS_SHAPE, ShapeType::MESH));
 		trackEntities.AddItem(wallEntity);
+	}
+	if (!frameEntity)
+	{
+		frameEntity = EntityMan.CreateEntity("Frame", frameModel, TexMan.GetTexture("img/track/Concrete_Tile_diffuse.png"));
+		QueuePhysics(new PMSetEntity(frameEntity, PT_PHYSICS_SHAPE, ShapeType::MESH));
+		trackEntities.AddItem(frameEntity);
 	}
 	// Add all.
 	MapMan.AddEntities(trackEntities);
@@ -720,8 +730,9 @@ Mesh * SRTrack::GenerateMesh()
 			right = point->rightSide;
 		Vector3f center = point->pos, nextCenter = nextPoint->pos;
 		Vector3f up = point->up;
-		Vector3f centerDown = -up;
-		Vector3f nextCenterDown = -nextPoint->up;
+		float downDist = trackWidth * 0.15f; // 15% of trackWidth? so e.g. 3 for 20
+		Vector3f centerDown = -up * downDist;
+		Vector3f nextCenterDown = -nextPoint->up * downDist;
 
 		/// Center-plane. Down a bit?
 #ifdef WHY
@@ -772,6 +783,8 @@ Mesh * SRTrack::GenerateMesh()
 	};
 	// For each point, generate walls.
 	GenerateWalls();
+	// Side- and under-walls.
+	GenerateTrackFrame();
 	// Add support-structures for the track.
 	GenerateSupportStructures();
 	// Add buildings.
@@ -829,6 +842,70 @@ Mesh * SRTrack::GenerateWalls()
 	};
 	return wallMesh;	
 }
+
+Mesh * SRTrack::GenerateTrackFrame()
+{
+	float wallWidth = 1.f;
+	// Based on previous data, create outer walls.
+	for (int i = 0; i < points.Size(); ++i)
+	{
+		TrackPoint * tp = points[i];
+		Vector3f rightOffset = tp->right * wallWidth;
+		tp->leftSideWallOuter = tp->leftSideWall - rightOffset;
+		tp->rightSideWallOuter = tp->rightSideWall + rightOffset;
+		tp->leftOuter = tp->leftSide - rightOffset;
+		tp->rightOuter = tp->rightSide + rightOffset;
+		tp->lowerLeft = tp->leftSide * 0.5f + tp->pos * 0.5f - tp->up * trackWidth * 0.3f;
+		tp->lowerRight = tp->rightSide * 0.5f + tp->pos * 0.5f - tp->up * trackWidth * 0.3f;
+	}
+	// Create mesh.
+	if (frameMesh)
+		delete frameMesh;
+	frameMesh = new Mesh();
+	EMesh * em = new EMesh("Generated frame/outer walls");
+	// Create the walls
+	for (int i = 0; i < points.Size(); ++i)
+	{
+		int thisIndex = i, nextIndex = (i+1) % points.Size();
+		TrackPoint * p = points[thisIndex], * p2 = points[nextIndex];
+		/// Top-sides by the inner-walls.
+/*		Vector3f outLeftUp = p->leftSideWall - p->right * wallWidth,
+			inLeftUp = p->leftSideWall,
+			farOutLeftUp = p2->leftSideWall - p->right * wallWidth,
+			farInLeftUp = p2->leftSideWall;
+			*/
+		/// Top-sides.
+//		em->AddPlane(farOutLeftUp, outLeftUp, inLeftUp, farInLeftUp);
+		em->AddPlane(p2->leftSideWallOuter, p->leftSideWallOuter, p->leftSideWall, p2->leftSideWall);
+		em->AddPlane(p2->rightSideWall, p->rightSideWall, p->rightSideWallOuter, p2->rightSideWallOuter);
+		/// Side-sides
+		em->AddPlane(p2->leftOuter, p->leftOuter, p->leftSideWallOuter, p2->leftSideWallOuter);
+		em->AddPlane(p2->rightSideWallOuter, p->rightSideWallOuter, p->rightOuter, p2->rightOuter);
+		// 3 bottom plates
+		em->AddPlane(p2->lowerLeft, p->lowerLeft, p->leftOuter, p2->leftOuter);
+		em->AddPlane(p2->rightOuter, p->rightOuter, p->lowerRight, p2->lowerRight);
+		em->AddPlane(p2->lowerRight, p->lowerRight, p->lowerLeft, p2->lowerLeft);
+		
+	}
+	frameMesh->LoadDataFrom(em);
+	delete em;
+	// Create model if needed
+	if (!frameModel)
+	{
+		frameModel = ModelMan.NewDynamic();
+	}
+	frameModel->mesh = frameMesh;
+	frameMesh->CalculateBounds(); 
+	frameModel->RegenerateTriangulizedMesh();
+	/// Buffer it if already in there.
+	if (frameEntity)
+	{
+		QueueGraphics(new GMBufferMesh(frameMesh));
+		QueuePhysics(new PMRecalculatePhysicsMesh(frameMesh));
+	};
+	return frameMesh;	
+}
+
 
 List<Entity*> SRTrack::GenerateSupportStructures()
 {
