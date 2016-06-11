@@ -140,6 +140,7 @@ void SRTrack::MakeActive()
 	// Add all.
 	MapMan.AddEntities(trackEntities);
 	MapMan.AddEntities(audienceStructs);
+	MapMan.AddEntities(supportStructEntities);
 	// Add other relevant entities to represent the track.
 
 	// Add scenery
@@ -909,13 +910,50 @@ Mesh * SRTrack::GenerateTrackFrame()
 
 List<Entity*> SRTrack::GenerateSupportStructures()
 {
-	int supportStructureInterval = 5;
+	if (supportStructEntities.Size())
+		MapMan.DeleteEntities(supportStructEntities);
+	supportStructEntities.Clear();
+
+	int supportStructureInterval = 3;
+	float columnSize = 2.f;
 	// Do every X points?
-	for (int i = 0; i < points.Size(); i += supportStructureInterval)
+	for (int i = 3; i < points.Size(); i += supportStructureInterval)
 	{
-		
+		TrackPoint * p = points[i];
+		/// Skip those in loops above half.
+		if (p->up.y <= 0.1f)
+			continue;
+		if (p->pos.y < 15.f)
+			continue;
+		bool bad = false;
+		for (int j = 0; j < points.Size(); ++j)
+		{
+			if (AbsoluteValue(j - i) < 5)
+				continue;
+			// If anyone nearby, skip for now.
+			TrackPoint * p2 = points[j];
+			Vector3f distVec = p2->pos - p->pos;
+			distVec.y = 0;
+			float dist = (distVec).LengthSquared();
+			if (dist < trackWidth * trackWidth){
+				bad = true;
+				break;
+			}
+			// Actually check dist.
+		}
+		if (bad)
+			continue;
+
+		Entity * supStructEntity = EntityMan.CreateEntity("SupStruct", ModelMan.GetModel("cube"), TexMan.GetTexture("img/track/Concrete_Tile_diffuse.png"));
+		Vector3f pos = (p->lowerLeft + p->lowerRight) * 0.5f;
+		// Scale.
+		supStructEntity->SetScale(Vector3f(columnSize, pos.y, columnSize));
+		pos.y /= 2;
+		supStructEntity->SetPosition(pos);
+		QueuePhysics(new PMSetEntity(supStructEntity, PT_PHYSICS_SHAPE, PhysicsShape::MESH));
+		supportStructEntities.AddItem(supStructEntity);
 	}
-	return List<Entity*>();
+	return supportStructEntities;
 }
 
 List<Entity*> SRTrack::GenerateAudienceStructures()

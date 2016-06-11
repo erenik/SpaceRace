@@ -281,7 +281,7 @@ void SRState::EvaluateLine(String line)
 	}
 	else if (line.StartsWith("/itLength") || line.StartsWith("/itlength"))
 	{
-		track->itLength = line.Tokenize(" ")[1].ParseFloat();
+		track->itLength = arg1.ParseFloat();
 		EvaluateLine("/gen");
 	}
 	else if (line.StartsWith("/SmoothHardEdges") || line.StartsWith("/she"))

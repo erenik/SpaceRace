@@ -155,6 +155,7 @@ private:
 	TrackPoint * archStart, * archEnd; // For longer arches, reset to 0,0,0 once arch completes or is canceled.
 
 	List<Entity*> trackEntities;
+	List<Entity*> supportStructEntities;
 	List<Entity*> audienceStructs;
 	Entity * trackEntity, * wallEntity, * frameEntity; // The actual road.
 	Model * trackModel, * wallModel, * frameModel;
