@@ -67,6 +67,9 @@ void SRIntegrator::IntegrateDynamicEntities(List<Entity*> & dynamicEntities, flo
 	//			std::cout<<"\nBarrel needed: "<<barrelNeeded;
 			entity->physics->angularVelocity += forwardVec * barrelNeeded * timeInSeconds * 0.1f;
 
+			/// Add some velocity towards the next and previous node, acting as magnetism down towards the field?
+			entity->physics->velocity -= desUp * timeInSeconds * 5.f + (entity->worldPosition - tp->pos).NormalizedCopy() * 5.f * timeInSeconds;
+
 			/// Old rolling
 			/*
 			Ray ray(entity->worldPosition, -upVec); // 0 - side, 1 - up, 2 - forward
