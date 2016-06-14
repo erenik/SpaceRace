@@ -21,6 +21,7 @@
 #include "Graphics/Camera/Camera.h"
 #include "Physics/Messages/PhysicsMessage.h"
 #include "Graphics/Messages/GMUI.h"
+#include "Graphics/Messages/GMSet.h"
 #include "Graphics/Messages/GMCamera.h"
 #include "Graphics/Messages/GraphicsMessage.h"
 #include "Graphics/Messages/GraphicsMessages.h"
@@ -110,7 +111,8 @@ void SRState::OnEnter(AppState * previousState)
 /// Main processing function, using provided time since last frame.
 void SRState::Process(int timeInMs)
 {
-
+	if (track)
+		track->Process(timeInMs);
 }
 /// Function when leaving this state, providing a pointer to the next StateMan.
 void SRState::OnExit(AppState * nextState)
@@ -278,6 +280,9 @@ void SRState::EvaluateLine(String line)
 		QueueGraphics(new GMSetCamera(firstPersonCamera, CT_ENTITY_TO_TRACK, playerEntity));
 		// Set as active camera?
 		QueueGraphics(new GMSetCamera(firstPersonCamera));
+		/// Remove stuffs.
+		QueueGraphics(new GMSet(GT_RENDER_GRID, false));
+//		QueueGraphics(new GMSet(GT_RENDER_DEFAULT_TRIANGLE, false));
 	}
 	else if (line.StartsWith("/itLength") || line.StartsWith("/itlength"))
 	{

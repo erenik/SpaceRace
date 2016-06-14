@@ -27,6 +27,8 @@ public:
 	Vector3f leftSideWallOuter, rightSideWallOuter; // Outer upper coordinates of the wall.
 	Vector3f leftOuter, rightOuter; // Outer sides - ground-level.
 	Vector3f lowerLeft, lowerRight; // Bottom corners for the outer frame.
+	Vector3f centerLeft, centerRight; // The main points of track in between player will be most of the time (hopefully).
+	Vector3f centerDown; // Down vec to main part.
 
 	TrackPoint * next;
 };
@@ -38,7 +40,7 @@ public:
 	SRTrack();
 	/// Makes this track active. - rendered, physical, loaded
 	void MakeActive();
-
+	void Process(int timeInMs);
 	// Generates field.
 	void Generate();
 	/// Calculates Up- and Right-vectors. Skips those with already non-0 values, unless force is true.
@@ -47,8 +49,10 @@ public:
 	Mesh * GenerateMesh();
 	Mesh * GenerateWalls();
 	Mesh * GenerateTrackFrame();
+	Mesh * GenerateCaves();
 	List<Entity*> GenerateSupportStructures();
 	List<Entity*> GenerateAudienceStructures();
+	void GeneratePathLights();
 	Vector3f SpawnPosition();
 
 	/// Spawns player into map. Gives it input focus too? <- should change later
@@ -156,7 +160,7 @@ private:
 
 	List<Entity*> trackEntities;
 	List<Entity*> supportStructEntities;
-	List<Entity*> audienceStructs;
+	List<Entity*> audienceStructs, pathLights;
 	Entity * trackEntity, * wallEntity, * frameEntity; // The actual road.
 	Model * trackModel, * wallModel, * frameModel;
 	Mesh * mesh, * wallMesh, * frameMesh;

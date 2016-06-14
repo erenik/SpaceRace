@@ -8,6 +8,7 @@
 #include "Model/ModelManager.h"
 #include "Model/Model.h"
 #include "Mesh/Mesh.h"
+#include "Mesh/EFace.h"
 #include "TextureManager.h"
 #include "Maps/MapManager.h"
 
@@ -19,6 +20,10 @@
 #include "PhysicsLib/PhysicsType.h"
 #include "StateManager.h"
 #include "Graphics/Messages/GMSetEntity.h"
+
+#include "Properties/TrackLightProp.h"
+#include "ShipManager.h"
+#include "Properties/RacingShipGlobal.h"
 
 #include "Util/List/ListUtil.h"
 #include "File/LogFile.h"
@@ -114,7 +119,9 @@ void SRTrack::MakeActive()
 	// Make track entity. 
 	if (!trackEntity)
 	{
-		trackEntity = EntityMan.CreateEntity("Track", trackModel, TexMan.GetTexture("img/track/part_1_diffuse.png"));
+		String texture = "img/track/TrackTestGradient.png";
+		texture = "img/track/part_1_diffuse.png";
+		trackEntity = EntityMan.CreateEntity("Track", trackModel, TexMan.GetTexture(texture));
 		QueuePhysics(new PMSetEntity(trackEntity, PT_PHYSICS_SHAPE, ShapeType::MESH));
 		QueuePhysics(new PMSetEntity(trackEntity, PT_COLLISION_CATEGORY, CC_TRACK));
 		trackEntities.AddItem(trackEntity);
@@ -141,6 +148,7 @@ void SRTrack::MakeActive()
 	MapMan.AddEntities(trackEntities);
 	MapMan.AddEntities(audienceStructs);
 	MapMan.AddEntities(supportStructEntities);
+	MapMan.AddEntities(pathLights, true, false);
 	// Add other relevant entities to represent the track.
 
 	// Add scenery
@@ -152,6 +160,10 @@ void SRTrack::MakeActive()
 	/// Update the physics thingy.
 //	QueuePhysics(new PMSet(PT_AABB_SWEEPER_DIVISIONS
 
+}
+
+void SRTrack::Process(int timeInMs)
+{
 }
 
 // Generates field.
@@ -719,22 +731,27 @@ Mesh * SRTrack::GenerateMesh()
 		delete mesh;
 	mesh = new Mesh();
 	EMesh * em = new EMesh("Generated track");
+
+	/// Add points for the middle bottom.
+	for (int i = 0; i < points.Size(); ++i)
+	{
+		TrackPoint * p = points[i];
+		float ratioCenter = 0.5f;
+		float ratioEdge = 1 - ratioCenter;
+		Vector3f left = p->leftSide,
+			right = p->rightSide;
+		Vector3f center = p->pos;
+		Vector3f centerDown = -p->up * trackWidth * 0.15f;
+		p->centerLeft = center * ratioCenter + left * ratioEdge + centerDown;
+		p->centerRight = center * ratioCenter + right * ratioEdge + centerDown;
+	}
+
 	/// Adds quads for the main track.
 	for (int i = 0; i < points.Size(); ++i)
 	{
 		int thisIndex = i, nextIndex = (i+1) % points.Size();
-		TrackPoint * point = points[thisIndex],
-			* nextPoint = points[nextIndex];
-		Vector3f nextLeft = nextPoint->leftSide,
-			left = point->leftSide,
-			nextRight = nextPoint->rightSide,
-			right = point->rightSide;
-		Vector3f center = point->pos, nextCenter = nextPoint->pos;
-		Vector3f up = point->up;
-		float downDist = trackWidth * 0.15f; // 15% of trackWidth? so e.g. 3 for 20
-		Vector3f centerDown = -up * downDist;
-		Vector3f nextCenterDown = -nextPoint->up * downDist;
-
+		TrackPoint * p = points[thisIndex],
+			* p2 = points[nextIndex];
 		/// Center-plane. Down a bit?
 #ifdef WHY
 		/// Initial simple version.
@@ -744,24 +761,12 @@ Mesh * SRTrack::GenerateMesh()
 			nextRight);
 #endif
 		/// First custom-shape version.
-		float ratioCenter = 0.5f;
-		float ratioEdge = 1 - ratioCenter;
-		Vector3f midLeft = center * ratioCenter + left * ratioEdge,
-			midRight = center * ratioCenter + right * ratioEdge,
-			nextMidLeft = nextCenter * ratioCenter + nextLeft * ratioEdge,
-			nextMidRight = nextCenter * ratioCenter + nextRight * ratioEdge;
-		em->AddPlane(nextMidLeft + nextCenterDown,  // Middle
-			midLeft + centerDown, 
-			midRight + centerDown, 
-			nextMidRight + nextCenterDown);
-		em->AddPlane(nextLeft, 	// Left?
-			left, 
-			midLeft + centerDown, 
-			nextMidLeft + nextCenterDown);
-		em->AddPlane(nextMidRight + nextCenterDown,  // Right
-			midRight + centerDown, 
-			right, 
-			nextRight);
+		EFace * face = em->AddPlane(p2->centerLeft, p->centerLeft, p->centerRight, p2->centerRight); // Center
+		face->SetUVCoords(0, 0.f, +0.5f, 1.f);
+		face = em->AddPlane(p2->leftSide, p->leftSide, p->centerLeft, p2->centerLeft);
+		face->SetUVCoords(0.5f, 0.f, 1.f, 1.f);
+		face = em->AddPlane(p2->centerRight, p->centerRight, p->rightSide, p2->rightSide);
+		face->SetUVCoords(1.f, 0.f, 0.5f, 1.f);
 		// Set UV-coordinates?
 		// Side-planes.
 //		em
@@ -776,6 +781,9 @@ Mesh * SRTrack::GenerateMesh()
 	trackModel->mesh = mesh;
 	mesh->CalculateBounds(); 
 	trackModel->RegenerateTriangulizedMesh();
+	/// Save a copy.
+	mesh->SaveObj("output/obj/mainTrack");
+
 	/// Buffer it if already in there.
 	if (trackEntity)
 	{
@@ -783,14 +791,14 @@ Mesh * SRTrack::GenerateMesh()
 		QueuePhysics(new PMRecalculatePhysicsMesh(mesh));
 	};
 	// For each point, generate walls.
-	GenerateWalls();
+	GenerateWalls()->SaveObj("output/obj/walls");
 	// Side- and under-walls.
-	GenerateTrackFrame();
+	GenerateTrackFrame()->SaveObj("output/obj/frame");
 	// Add support-structures for the track.
 	GenerateSupportStructures();
 	// Add buildings.
 	GenerateAudienceStructures();
-
+	GeneratePathLights(); // Blink-blink!
 	return mesh;
 }
 
@@ -907,6 +915,12 @@ Mesh * SRTrack::GenerateTrackFrame()
 	return frameMesh;	
 }
 
+Mesh * GenerateCaves()
+{
+	return 0;
+}
+
+
 
 List<Entity*> SRTrack::GenerateSupportStructures()
 {
@@ -928,7 +942,7 @@ List<Entity*> SRTrack::GenerateSupportStructures()
 		bool bad = false;
 		for (int j = 0; j < points.Size(); ++j)
 		{
-			if (AbsoluteValue(j - i) < 5)
+			if (AbsoluteValue(j - i) < 10)
 				continue;
 			// If anyone nearby, skip for now.
 			TrackPoint * p2 = points[j];
@@ -1008,12 +1022,49 @@ List<Entity*> SRTrack::GenerateAudienceStructures()
 	return audienceStructs;
 }
 
+void SRTrack::GeneratePathLights()
+{
+	if (pathLights.Size())
+		MapMan.DeleteEntities(pathLights);
+	pathLights.Clear();
+	int stepCount = MinimumFloat(1, 20.f / itLength); // One every 20 meters?
+	int numLights = points.Size() / 2 / stepCount;
+	int numLightPaths = MaximumFloat(1, numLights / (itLength * 4.f));
+	int numPerPath = numLights / numLightPaths;
+	int msPerLight = 100;
+	TrackLightProp::trackLights.Clear();
+	TrackLightProp::msPerLight = msPerLight;
+	TrackLightProp::msPerDecayIteration = 100;
+	TrackLightProp::baseColor = Color(75,75,0,255);
+	TrackLightProp::brightColor = Color(255,182,26,255);
+	for (int i = 0; i < points.Size(); i += stepCount)
+	{
+		TrackPoint * tp = points[i];
+		Vector3f down = -tp->up * 0.8;
+		/// Fetch model.
+		Model * model = ModelMan.GetModel("sphere");
+		/// Place building.
+		Entity * e = EntityMan.CreateEntity("PathLight"+String(i), model, 0);
+		e->SetPosition((tp->rightSide + tp->centerRight) * 0.5f + down);
+	
+		Entity * e2 = EntityMan.CreateEntity("PathLight"+String(i), model, 0);
+		e2->SetPosition((tp->leftSide + tp->centerLeft) * 0.5f + down);
+		TrackLightProp * prop = new TrackLightProp(e);
+		prop->owners.Add(e, e2);
+		
+		e->properties.AddItem(prop);
+		if (i == 0 || i % numPerPath == 0)
+			prop->Light();
+		pathLights.Add(e, e2);
+	}
+	// Set scale.
+	QueuePhysics(new PMSetEntity(pathLights, PT_SET_SCALE, 0.8f));
+}
+
 Vector3f SRTrack::SpawnPosition()
 {
 	return points[0]->pos + Vector3f(0,2,0);
 }
-#include "ShipManager.h"
-#include "Properties/RacingShipGlobal.h"
 
 /// o-o
 Entity * SRTrack::SpawnPlayer()
