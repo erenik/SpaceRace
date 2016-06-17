@@ -32,6 +32,10 @@
 #include "Random/Random.h"
 Random trackRand;
 
+#include "Weather/WeatherSystem.h"
+// Set up sun and weather.
+WeatherSystem weather;
+
 #define LogTrack(t,l) LogToFile("log/Track.txt", t, l, 0)
 
 TrackPoint::TrackPoint()
@@ -111,9 +115,21 @@ SRTrack::SRTrack()
 	degreesTurnRight = 0;
 	maxTurnPerSeg = 15;
 }
+
 /// Makes this track active. - rendered, physical, loaded
 void SRTrack::MakeActive()
 {
+	if (lighting.NumLights() == 0)
+	{
+
+		/*
+		Light * sun = new Light("Sun");
+		sun->type = LightType::DIRECTIONAL;
+		sun->castsShadow = true;
+		sun->diffuse = Vector3f(1.f, 1.f, 1.f);
+		this->lighting.Add(sun);
+		*/
+	}
 	/// Make it active.
 	MapMan.MakeActive(this);
 	// Make track entity. 
@@ -121,6 +137,7 @@ void SRTrack::MakeActive()
 	{
 		String texture = "img/track/TrackTestGradient.png";
 		texture = "img/track/part_1_diffuse.png";
+		texture = "img/track/Diffuse.png";
 		trackEntity = EntityMan.CreateEntity("Track", trackModel, TexMan.GetTexture(texture));
 		QueuePhysics(new PMSetEntity(trackEntity, PT_PHYSICS_SHAPE, ShapeType::MESH));
 		QueuePhysics(new PMSetEntity(trackEntity, PT_COLLISION_CATEGORY, CC_TRACK));
@@ -134,13 +151,18 @@ void SRTrack::MakeActive()
 	}
 	if (!wallEntity)
 	{
-		wallEntity = EntityMan.CreateEntity("Walls", wallModel, TexMan.GetTexture("img/track/part_2_diffuse.png"));
+		String texture = "img/track/" +	
+			String("walls_diffuse.png");
+//		texture = "img/track/part_2_diffuse.png";
+		wallEntity = EntityMan.CreateEntity("Walls", wallModel, TexMan.GetTexture(texture));
 		QueuePhysics(new PMSetEntity(wallEntity, PT_PHYSICS_SHAPE, ShapeType::MESH));
 		trackEntities.AddItem(wallEntity);
 	}
 	if (!frameEntity)
 	{
-		frameEntity = EntityMan.CreateEntity("Frame", frameModel, TexMan.GetTexture("img/track/Concrete_Tile_diffuse.png"));
+		String texture = "img/track/Concrete_Tile_diffuse.png";
+		texture = "img/track/frame_diffuse.png";
+		frameEntity = EntityMan.CreateEntity("Frame", frameModel, TexMan.GetTexture(texture));
 		QueuePhysics(new PMSetEntity(frameEntity, PT_PHYSICS_SHAPE, ShapeType::MESH));
 		trackEntities.AddItem(frameEntity);
 	}
@@ -155,15 +177,27 @@ void SRTrack::MakeActive()
 
 	// Create a dummy entity.
 	static int attempts = 0;
-	MapMan.CreateEntity("Lall", ModelMan.GetModel("obj/cube.obj"), TexMan.GetTexture("0xFFFFFFFF"), Vector3f(float(attempts++), 0,0));
+//	MapMan.CreateEntity("Lall", ModelMan.GetModel("obj/cube.obj"), TexMan.GetTexture("0xFFFFFFFF"), Vector3f(float(attempts++), 0,0));
 
 	/// Update the physics thingy.
 //	QueuePhysics(new PMSet(PT_AABB_SWEEPER_DIVISIONS
 
+	/// Add some lights?
+	Sleep(100);
+	weather.Initialize();
+	weather.SetActiveArea(this->CalcAABB());
+	weather.SetSunTime(14);
 }
 
 void SRTrack::Process(int timeInMs)
 {
+	static int ms = 0;
+	ms = (timeInMs + ms)% 2000;
+	if (ms > 1000)
+	{
+		ms -= 1000;
+		weather.Process(1000);
+	}
 }
 
 // Generates field.
@@ -1059,6 +1093,7 @@ void SRTrack::GeneratePathLights()
 	}
 	// Set scale.
 	QueuePhysics(new PMSetEntity(pathLights, PT_SET_SCALE, 0.8f));
+	QueueGraphics(new GMSetEntityb(pathLights, GT_CAST_SHADOWS, false));
 }
 
 Vector3f SRTrack::SpawnPosition()
@@ -1141,6 +1176,7 @@ bool SRTrack::Load(String fileName)
 	track->GenerateMesh();
 	// Redner it?
 	track->MakeActive();
+	rsg = 0; // Reset?
 }
 
 /// o-o
