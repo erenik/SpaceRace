@@ -37,6 +37,8 @@
 #include "StateManager.h"
 #include "Audio/TrackManager.h"
 
+#include "File/File.h"
+
 Camera * mapPreviewCamera = 0, * thirdPersonCamera = 0, * activeCamera = 0, * firstPersonCamera = 0, * reverseCamera = 0;
 List<Camera*> cameras;
 
@@ -53,6 +55,8 @@ void RegisterStates()
 	StateMan.RegisterState(srs);
 	StateMan.QueueState(srs);
 }
+
+#include "Script/ScriptManager.h"
 
 /// Function when entering this state, providing a pointer to the previous StateMan.
 void SRState::OnEnter(AppState * previousState)
@@ -105,6 +109,8 @@ void SRState::OnEnter(AppState * previousState)
 
 	// Create a dummy entity.
 //	MapMan.CreateEntity("Lall", ModelMan.GetModel("obj/cube.obj"), TexMan.GetTexture("0xFFFFFFFF"));
+
+	ScriptMan.NewScript(File::GetLines("OnEnter.ini"));
 
 }
 
@@ -207,6 +213,8 @@ void SRState::ProcessMessage(Message * message)
 			break;
 		}
 		case MessageType::STRING:
+			if (message->scriptOrigin)
+				EvaluateLine(msg);
 			if (msg == "OpenInputLine")
 			{
 				QueueGraphics(new GMPushUI("gui/UIInputLine.gui"));
@@ -293,6 +301,11 @@ void SRState::EvaluateLine(String line)
 	{
 		track->SmoothHardEdges();
 		EvaluateLine("/regen");
+	}
+	else if (line.StartsWith("/daySpeed"))
+	{
+		extern float daySpeed;
+		daySpeed = arg1.ParseFloat();
 	}
 	else if (line.StartsWith("/smoothAll"))
 	{

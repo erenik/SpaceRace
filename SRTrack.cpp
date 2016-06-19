@@ -141,6 +141,7 @@ void SRTrack::MakeActive()
 		trackEntity = EntityMan.CreateEntity("Track", trackModel, TexMan.GetTexture(texture));
 		QueuePhysics(new PMSetEntity(trackEntity, PT_PHYSICS_SHAPE, ShapeType::MESH));
 		QueuePhysics(new PMSetEntity(trackEntity, PT_COLLISION_CATEGORY, CC_TRACK));
+		QueuePhysics(new PMSetEntity(trackEntity, PT_PLANE_COLLISIONS_ONLY, true)); // Skip collisions on the sides and corners of each Tri/Quad.
 		trackEntities.AddItem(trackEntity);
 	}
 	else 
@@ -189,6 +190,7 @@ void SRTrack::MakeActive()
 	weather.SetSunTime(14);
 }
 
+float daySpeed = 1.f;
 void SRTrack::Process(int timeInMs)
 {
 	static int ms = 0;
@@ -196,7 +198,7 @@ void SRTrack::Process(int timeInMs)
 	if (ms > 1000)
 	{
 		ms -= 1000;
-		weather.Process(1000);
+		weather.Process(1000 * daySpeed);
 	}
 }
 
@@ -1066,7 +1068,8 @@ void SRTrack::GeneratePathLights()
 	int numLightPaths = MaximumFloat(1, numLights / (itLength * 4.f));
 	int numPerPath = numLights / numLightPaths;
 	int msPerLight = 100;
-	TrackLightProp::trackLights.Clear();
+	TrackLightProp::trackLightsLeft.Clear();
+	TrackLightProp::trackLightsRight.Clear();
 	TrackLightProp::msPerLight = msPerLight;
 	TrackLightProp::msPerDecayIteration = 100;
 	TrackLightProp::baseColor = Color(75,75,0,255);
@@ -1080,15 +1083,19 @@ void SRTrack::GeneratePathLights()
 		/// Place building.
 		Entity * e = EntityMan.CreateEntity("PathLight"+String(i), model, 0);
 		e->SetPosition((tp->rightSide + tp->centerRight) * 0.5f + down);
+		TrackLightProp * prop = new TrackLightProp(e, e->localPosition - 0.5f * down, TrackLight::RIGHT);
+		e->properties.AddItem(prop);
 	
 		Entity * e2 = EntityMan.CreateEntity("PathLight"+String(i), model, 0);
 		e2->SetPosition((tp->leftSide + tp->centerLeft) * 0.5f + down);
-		TrackLightProp * prop = new TrackLightProp(e);
-		prop->owners.Add(e, e2);
+		TrackLightProp * prop2 = new TrackLightProp(e2, e2->localPosition - 0.5f * down, TrackLight::LEFT);
+		e2->properties.AddItem(prop2);
 		
-		e->properties.AddItem(prop);
 		if (i == 0 || i % numPerPath == 0)
-			prop->Light();
+		{
+			prop->LightUp();
+			prop2->LightUp();
+		}
 		pathLights.Add(e, e2);
 	}
 	// Set scale.
@@ -1114,6 +1121,7 @@ Entity * SRTrack::SpawnPlayer()
 	Vector3f toNext = CurrDir();
 	Angle angle(toNext);
 
+	QueueGraphics(new GMSetEntityTexture(entity, SPECULAR_MAP, ship->specularSource));
 	QueuePhysics(new PMSetEntity(entity, PT_PHYSICS_TYPE, PhysicsType::DYNAMIC));
 	QueuePhysics(new PMSetEntity(entity, PT_USE_QUATERNIONS, true));
 //	QueuePhysics(new PMSetEntity(entity, PT_REQ, PhysicsType::DYNAMIC));

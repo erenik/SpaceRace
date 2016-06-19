@@ -7,6 +7,7 @@
 #include "Physics/CC.h"
 #include "Graphics/GraphicsManager.h"
 #include "Graphics/Messages/GMSetGraphicEffect.h"
+#include "Graphics/Messages/GMEntity.h"
 #include "Graphics/GraphicsProperty.h"
 #include "Graphics/Effects/GraphicEffect.h"
 #include "Graphics/Effects/AlphaModelEffect.h"
@@ -90,32 +91,26 @@ void RacingShipGlobal::OnEnter()
 	QueuePhysics(new PMSetEntity(owner, PT_RESTITUTION, 0.001f)); // No bouncing ships here.
 	QueuePhysics(new PMSetEntity(owner, PT_COLLISION_FILTER, CC_ALL));
 
-	/// Attach shield if not already done!
-	if (owner->graphics == NULL)
-	{
-		std::cout<<"\nAdd shield n lights?";
-		/*
-
 	    /// Shield!
-		GraphicsProperty * graphics = new GraphicsProperty();
+//		GraphicsProperty * graphics = new GraphicsProperty(owner);
 	//	graphics->effects = new List<GraphicEffect*>();
 	//	AlphaModelEffect * gfx = new AlphaModelEffect("Shield", "sphere", entity);
 	//	graphics->effects->Add(gfx);
 
 		/// Attach a light o-o
-		graphics->dynamicLights = new List<Light*>();
-		Light * headlights = new Light();
+		Light * headlights = new Light("ShipHeadlights"+name);
 		headlights->type = LightType::SPOTLIGHT;
 		headlights->relativeSpotDirection = Vector3f(0,0,-1.0f);
 		float lightIntensity = 7.0f;
-		headlights->attenuation = Vector3f(1.0f / lightIntensity, 0.001f, 0.00000001f);
+		headlights->attenuation = Vector3f(lightIntensity, 0.1f, 0.0001f);
 		headlights->diffuse = Vector3f(0.8f,0.9f,1.f);
 		headlights->specular = headlights->diffuse * 0.5f;
 		headlights->spotCutoff = 65.0f;
 		headlights->spotExponent = 12;
 		headlights->owner = owner;
-		graphics->dynamicLights->Add(headlights);
+		QueueGraphics(new GMAttachLight(headlights, owner));
 
+		/*
         /// Engine exhaust!
         graphics->particleSystems = new List<ParticleSystem*>();
         Exhaust * ps = new Exhaust(entity);
@@ -130,7 +125,7 @@ void RacingShipGlobal::OnEnter()
 		// Don't scale down the shield, yo..
 	//	Graphics.QueueMessage(new GMSetGraphicEffect(RELATIVE_SCALE, "Shield", Vector3f(0.7f,0.7f,0.7f), entity));
 		*/
-	}
+	//}
 }
 
 /// Main processing function
