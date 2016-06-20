@@ -11,6 +11,15 @@
 #include "../Network/SRSession.h"
 #include "../SRPlayer.h"
 
+enum 
+{
+	LOW,
+	MEDIUM,
+	HIGH,
+};
+
+extern int graphicsPreset;
+
 class SRState : public AppState
 {
 public:

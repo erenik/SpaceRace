@@ -44,6 +44,8 @@ List<Camera*> cameras;
 
 Entity * playerEntity = 0;
 
+int graphicsPreset = HIGH;
+
 void SetApplicationDefaults()
 {
 	Application::name = "Space Race";

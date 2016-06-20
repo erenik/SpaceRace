@@ -85,6 +85,8 @@ void TrackLightProp::LightUp(int startTime /*=0*/)
 	UpdateTexture();
 }
 
+#include "GameStates/SRState.h"
+
 void TrackLightProp::UpdateTexture()
 {
 	Color color;
@@ -100,7 +102,13 @@ void TrackLightProp::UpdateTexture()
 	/// Update lighting at the same time.
 	if (light)
 	{
-		float fRatio = 8 - 128.f * (1 - ratio);
+		float decayRate = 128.f;
+		switch(graphicsPreset)
+		{
+			case MEDIUM: decayRate = 64.f; break;
+			case HIGH: decayRate = 16.f; break;
+		}
+		float fRatio = 8 - decayRate * (1 - ratio);
 		QueueGraphics(new GMSetLight(light, LT_CONSTANT_ATTENUATION, fRatio));
 		QueueGraphics(new GMSetLight(trackLightsRight[index]->light, LT_CONSTANT_ATTENUATION, fRatio));
 	}

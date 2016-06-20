@@ -157,6 +157,7 @@ void SRTrack::MakeActive()
 //		texture = "img/track/part_2_diffuse.png";
 		wallEntity = EntityMan.CreateEntity("Walls", wallModel, TexMan.GetTexture(texture));
 		QueuePhysics(new PMSetEntity(wallEntity, PT_PHYSICS_SHAPE, ShapeType::MESH));
+		QueuePhysics(new PMSetEntity(wallEntity, PT_PLANE_COLLISIONS_ONLY, true)); // Skip collisions on the sides and corners of each Tri/Quad.
 		trackEntities.AddItem(wallEntity);
 	}
 	if (!frameEntity)
@@ -165,6 +166,7 @@ void SRTrack::MakeActive()
 		texture = "img/track/frame_diffuse.png";
 		frameEntity = EntityMan.CreateEntity("Frame", frameModel, TexMan.GetTexture(texture));
 		QueuePhysics(new PMSetEntity(frameEntity, PT_PHYSICS_SHAPE, ShapeType::MESH));
+		QueuePhysics(new PMSetEntity(frameEntity, PT_PLANE_COLLISIONS_ONLY, true)); // Skip collisions on the sides and corners of each Tri/Quad.
 		trackEntities.AddItem(frameEntity);
 	}
 	// Add all.
@@ -195,10 +197,10 @@ void SRTrack::Process(int timeInMs)
 {
 	static int ms = 0;
 	ms = (timeInMs + ms)% 2000;
-	if (ms > 1000)
+	if (ms > 50)
 	{
-		ms -= 1000;
-		weather.Process(1000 * daySpeed);
+		ms -= 50;
+		weather.Process(50 * daySpeed);
 	}
 }
 
